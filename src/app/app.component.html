@@ -1,21 +1,120 @@
-<main class="container">
-  <h1>Welcome to Tauri + Angular!</h1>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none"><path d="M5 11.5 16 5l11 6.5v9L16 27 5 20.5v-9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m5.5 11.8 10.5 6 10.5-6M16 18v8.3M10.7 8.2l10.6 6.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </div>
+      <div><strong>Compose Admin</strong><span>Docker workspace</span></div>
+    </div>
+    <div class="sidebar-label">ESPACE DE TRAVAIL</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+      Vue d'ensemble
+    </div>
+    <div class="nav-caption"><span>PROJETS COMPOSE</span><span class="count-badge">{{ projects().length }}</span></div>
+    <div class="sidebar-projects">
+      @for (project of projects(); track project.directory) {
+        <button class="sidebar-project" [class.current]="selectedDirectory() === project.directory" type="button" (click)="selectProject(project.directory)">
+          <span class="mini-status" [class.is-running]="isRunning(project)"></span><span>{{ project.name }}</span>
+        </button>
+      } @empty { <p class="sidebar-empty">Aucun projet détecté</p> }
+    </div>
+    <div class="sidebar-footer">
+      <div class="docker-mark">D</div>
+      <div class="connection-copy"><strong>Docker Engine</strong><span>Via Docker Compose CLI</span></div>
+      <span class="connection-indicator"></span>
+    </div>
+  </aside>
 
-  <div class="row">
-    <a href="https://tauri.app" target="_blank">
-      <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-    </a>
-    <a href="https://angular.io" target="_blank">
-      <img src="/assets/angular.svg" class="logo angular" alt="Angular logo" />
-    </a>
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="breadcrumb"><span>Workspace</span><span class="breadcrumb-separator">/</span><strong>Vue d'ensemble</strong></div>
+      <div class="topbar-actions">
+        <span class="local-badge"><span></span> LOCAL</span>
+        @if (rootDirectory(); as root) { <span class="folder-path" [title]="root">{{ root }}</span> }
+        <button class="refresh-button" type="button" (click)="refreshProjects()" [disabled]="scanning() || !rootDirectory()" aria-label="Actualiser les projets">
+          <svg [class.spinning]="scanning()" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg><span>Actualiser</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="page-heading">
+        <div><div class="eyebrow">DOCKER COMPOSE</div><h1>Vue d'ensemble</h1><p>Parcourez un dossier, détectez vos stacks et pilotez vos services Docker.</p></div>
+        <button class="choose-button" type="button" (click)="chooseDirectory()" [disabled]="choosingDirectory()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h5l2 2h8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-10Z"/><path d="M12 11v5m-2-2 2 2 2-2"/></svg>
+          {{ choosingDirectory() ? 'Ouverture…' : (rootDirectory() ? 'Changer de dossier' : 'Choisir un dossier') }}
+        </button>
+      </section>
+
+      @if (notice(); as currentNotice) {
+        <div class="notice" [class.notice-error]="currentNotice.kind === 'error'" [class.notice-success]="currentNotice.kind === 'success'" role="status">
+          <span class="notice-dot"></span><p>{{ currentNotice.text }}</p><button type="button" (click)="clearNotice()" aria-label="Fermer le message">×</button>
+        </div>
+      }
+
+      <section class="stat-grid" aria-label="Statistiques des projets">
+        <article class="stat-card"><div class="stat-icon projects-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div class="stat-copy"><span>Projets détectés</span><strong>{{ projects().length }}</strong></div><span class="stat-caption">Dans le dossier choisi</span></article>
+        <article class="stat-card"><div class="stat-icon running-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5 19 12 8 18.5v-13Z" fill="currentColor" stroke="none"/></svg></div><div class="stat-copy"><span>En cours</span><strong>{{ runningCount() }}</strong></div><span class="stat-caption">Stacks actives</span></article>
+        <article class="stat-card"><div class="stat-icon stopped-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg></div><div class="stat-copy"><span>À l'arrêt</span><strong>{{ stoppedCount() }}</strong></div><span class="stat-caption">Stacks arrêtées</span></article>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="projects-section">
+          <div class="section-heading">
+            <div><h2>Projets détectés</h2><p>Les fichiers Compose trouvés dans le dossier sélectionné.</p></div>
+            <label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg><input #search type="search" placeholder="Rechercher un projet…" [value]="searchTerm()" (input)="setSearchTerm(search.value)" /></label>
+          </div>
+
+          @if (!rootDirectory()) {
+            <div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h5l2 2h8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-10Z"/></svg></div><strong>Choisissez votre dossier de projets</strong><p>Compose Admin recherchera les fichiers compose.yaml, compose.yml et docker-compose.yml, y compris dans les sous-dossiers.</p><button class="text-button" type="button" (click)="chooseDirectory()">Parcourir les dossiers</button></div>
+          } @else if (scanning() && projects().length === 0) {
+            <div class="empty-state"><div class="empty-spinner"></div><strong>Analyse du dossier…</strong><p>Recherche des fichiers Docker Compose.</p></div>
+          } @else if (filteredProjects().length === 0) {
+            <div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><strong>{{ projects().length ? 'Aucun résultat' : 'Aucun fichier Compose détecté' }}</strong><p>{{ projects().length ? 'Essayez avec un autre terme.' : 'Choisissez un dossier contenant des fichiers Compose YAML.' }}</p>@if (!projects().length) { <button class="text-button" type="button" (click)="chooseDirectory()">Choisir un autre dossier</button> }</div>
+          } @else {
+            <div class="project-list">
+              @for (project of filteredProjects(); track project.directory) {
+                <article class="project-card" [class.project-selected]="selectedDirectory() === project.directory" (click)="selectProject(project.directory)" (keydown.enter)="selectProject(project.directory)" tabindex="0">
+                  <div class="project-symbol" [class.symbol-running]="isRunning(project)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div>
+                  <div class="project-info"><strong>{{ project.name }}</strong><span>{{ project.relativeDirectory }} · {{ project.composeFiles.length }} fichier(s)</span></div>
+                  <span class="status-pill" [class.status-running]="isRunning(project)"><span></span>{{ statusLabel(project) }}</span>
+                  <div class="quick-actions" (click)="$event.stopPropagation()">
+                    @if (!isRunning(project)) { <button class="quick-action start-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'start')">Démarrer</button> }
+                    @else { <button class="quick-action stop-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'stop')">Arrêter</button> }
+                    <button class="more-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'restart')" aria-label="Redémarrer le projet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg></button>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </div>
+
+        <aside class="details-panel">
+          @if (selectedProject(); as project) {
+            <div class="details-heading"><div class="detail-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div><span class="eyebrow">PROJET SÉLECTIONNÉ</span><h2>{{ project.name }}</h2></div></div>
+            <div class="detail-status-row"><span>État actuel</span><span class="status-pill" [class.status-running]="isRunning(project)"><span></span>{{ statusLabel(project) }}</span></div>
+            <div class="detail-divider"></div>
+            <div class="detail-subheading"><strong>Fichiers Compose</strong><span>{{ project.composeFiles.length }}</span></div>
+            <div class="file-list">@for (file of project.composeFiles; track file) { <div class="file-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10Z"/><path d="M13 3v7h7M8 15h8M8 18h5"/></svg><span [title]="file">{{ file }}</span></div> }</div>
+            <div class="detail-divider"></div>
+            <strong class="detail-subheading-label">Actions du projet</strong>
+            <div class="detail-actions">
+              @if (!isRunning(project)) { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'start')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none"/></svg>Démarrer</button> }
+              @else { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'stop')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg>Arrêter</button> }
+              <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'restart')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>Redémarrer</button>
+              <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'pull')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3"/></svg>Récupérer les images</button>
+              <button class="logs-action" type="button" [disabled]="loadingLogs()" (click)="showLogs(project)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Consulter les logs</button>
+            </div>
+            @if (logsDirectory() === project.directory) {
+              <div class="logs-section"><div class="logs-heading"><strong>Logs récents · 250 lignes</strong><button type="button" (click)="dismissLogs()" aria-label="Fermer les logs">×</button></div>@if (loadingLogs()) { <p class="muted-copy">Chargement des logs…</p> } @else { <pre>{{ logs() }}</pre> }</div>
+            }
+          } @else {
+            <div class="details-empty"><div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><strong>Sélectionnez un projet</strong><p>Choisissez une stack dans la liste pour afficher ses fichiers et ses actions.</p></div>
+          }
+        </aside>
+      </section>
+      <footer class="page-footer"><span>Compose Admin <span>·</span> Application locale</span><span>Recherche récursive · Docker Compose CLI v2</span></footer>
+    </main>
   </div>
-  <p>Click on the logos to learn more about the frameworks</p>
-
-  <form class="row" (submit)="greet($event, greetInput.value)">
-    <input #greetInput id="greet-input" placeholder="Enter a name..." />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{{ greetingMessage() }}</p>
-
-  <router-outlet />
-</main>
+</div>

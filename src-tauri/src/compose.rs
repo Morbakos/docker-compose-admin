@@ -1,0 +1,450 @@
+use serde::Serialize;
+use serde_json::Value;
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+    process::{Command, Output},
+};
+
+const MAX_SCAN_DEPTH: usize = 16;
+const MAX_COMPOSE_FILES: usize = 500;
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeProject {
+    pub name: String,
+    pub directory: String,
+    pub relative_directory: String,
+    pub compose_files: Vec<String>,
+    pub status: String,
+}
+
+fn is_compose_file_name(file_name: &str) -> bool {
+    let name = file_name.to_ascii_lowercase();
+    let yaml_extension = name.ends_with(".yml") || name.ends_with(".yaml");
+
+    if !yaml_extension {
+        return false;
+    }
+
+    let stem = name
+        .strip_suffix(".yaml")
+        .or_else(|| name.strip_suffix(".yml"))
+        .unwrap_or(&name);
+
+    stem == "compose"
+        || stem == "docker-compose"
+        || stem.starts_with("compose.")
+        || stem.starts_with("docker-compose.")
+}
+
+fn is_ignored_directory(name: &str) -> bool {
+    matches!(
+        name,
+        ".git"
+            | ".hg"
+            | ".svn"
+            | "node_modules"
+            | "target"
+            | "dist"
+            | "vendor"
+            | ".venv"
+            | "venv"
+            | ".idea"
+            | ".angular"
+    )
+}
+
+fn collect_compose_files(
+    directory: &Path,
+    depth: usize,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), String> {
+    if depth > MAX_SCAN_DEPTH || files.len() >= MAX_COMPOSE_FILES {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(directory)
+        .map_err(|error| format!("Impossible de lire « {} » : {error}", directory.display()))?;
+
+    for entry in entries.flatten() {
+        if files.len() >= MAX_COMPOSE_FILES {
+            break;
+        }
+
+        let path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => continue,
+        };
+
+        if file_type.is_symlink() {
+            continue;
+        }
+
+        if file_type.is_dir() {
+            let name = entry.file_name();
+            if name.to_str().is_some_and(is_ignored_directory) {
+                continue;
+            }
+            collect_compose_files(&path, depth + 1, files)?;
+        } else if file_type.is_file()
+            && entry
+                .file_name()
+                .to_str()
+                .is_some_and(is_compose_file_name)
+        {
+            files.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+fn compose_file_order(path: &Path) -> (u8, String) {
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    let priority = match name.as_str() {
+        "compose.yaml" => 0,
+        "compose.yml" => 1,
+        "docker-compose.yaml" => 2,
+        "docker-compose.yml" => 3,
+        _ if name.contains(".override.") => 5,
+        _ => 4,
+    };
+
+    (priority, name)
+}
+
+fn declared_project_name(files: &[PathBuf]) -> Option<String> {
+    let first_file = files.first()?;
+    let contents = fs::read_to_string(first_file).ok()?;
+
+    for line in contents.lines() {
+        if line.starts_with("name:") {
+            let value = line
+                .trim_start_matches("name:")
+                .split('#')
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .trim_matches('"')
+                .trim_matches('\'');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+
+    None
+}
+
+fn compose_base_args(project: &ComposeProject) -> Vec<String> {
+    let mut args = vec![
+        "compose".to_string(),
+        "--project-directory".to_string(),
+        project.directory.clone(),
+    ];
+
+    for file in &project.compose_files {
+        args.push("--file".to_string());
+        args.push(file.clone());
+    }
+
+    args
+}
+
+fn run_docker(args: &[String]) -> Result<Output, String> {
+    let output = Command::new("docker")
+        .args(args)
+        .output()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "Docker CLI introuvable. Installez Docker Desktop ou Docker Engine et vérifiez que « docker » est disponible dans le PATH.".to_string()
+            } else {
+                format!("Impossible de lancer Docker : {error}")
+            }
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let details = if stderr.is_empty() { stdout } else { stderr };
+
+        return Err(if details.is_empty() {
+            format!(
+                "Docker a quitté avec le code {}.",
+                output.status.code().unwrap_or(-1)
+            )
+        } else {
+            details
+        });
+    }
+
+    Ok(output)
+}
+
+fn output_text(output: Output) -> String {
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+
+    match (stdout.is_empty(), stderr.is_empty()) {
+        (false, false) => format!("{stdout}\n{stderr}"),
+        (false, true) => stdout,
+        (true, false) => stderr,
+        (true, true) => "Commande exécutée.".to_string(),
+    }
+}
+
+fn project_status(project: &ComposeProject) -> String {
+    let mut args = compose_base_args(project);
+    args.extend(["ps".to_string(), "--all".to_string(), "--format".to_string(), "json".to_string()]);
+
+    let output = match run_docker(&args) {
+        Ok(output) => output,
+        Err(_) => return "unknown".to_string(),
+    };
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    if text.trim().is_empty() {
+        return "stopped".to_string();
+    }
+
+    let mut states = Vec::new();
+    if let Ok(value) = serde_json::from_str::<Value>(&text) {
+        if let Some(rows) = value.as_array() {
+            for row in rows {
+                if let Some(state) = row
+                    .get("State")
+                    .or_else(|| row.get("Status"))
+                    .and_then(Value::as_str)
+                {
+                    states.push(state.to_ascii_lowercase());
+                }
+            }
+        } else if let Some(state) = value
+            .get("State")
+            .or_else(|| value.get("Status"))
+            .and_then(Value::as_str)
+        {
+            states.push(state.to_ascii_lowercase());
+        }
+    } else {
+        for line in text.lines() {
+            if let Ok(row) = serde_json::from_str::<Value>(line) {
+                if let Some(state) = row
+                    .get("State")
+                    .or_else(|| row.get("Status"))
+                    .and_then(Value::as_str)
+                {
+                    states.push(state.to_ascii_lowercase());
+                }
+            }
+        }
+    }
+
+    if states.is_empty() {
+        "unknown".to_string()
+    } else if states.iter().any(|state| state == "running" || state.starts_with("up ")) {
+        "running".to_string()
+    } else {
+        "stopped".to_string()
+    }
+}
+
+fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
+    let root = PathBuf::from(root_directory)
+        .canonicalize()
+        .map_err(|error| format!("Dossier inaccessible : {error}"))?;
+
+    if !root.is_dir() {
+        return Err("Le chemin sélectionné n'est pas un dossier.".to_string());
+    }
+
+    let mut compose_files = Vec::new();
+    collect_compose_files(&root, 0, &mut compose_files)?;
+    let mut by_directory: BTreeMap<PathBuf, Vec<PathBuf>> = BTreeMap::new();
+
+    for file in compose_files {
+        if let Some(parent) = file.parent() {
+            by_directory.entry(parent.to_path_buf()).or_default().push(file);
+        }
+    }
+
+    let mut projects = Vec::new();
+
+    for (directory, mut files) in by_directory {
+        files.sort_by_key(|file| compose_file_order(file));
+        let directory_name = directory
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("compose-project");
+        let name = declared_project_name(&files).unwrap_or_else(|| directory_name.to_string());
+
+        let relative_directory = directory
+            .strip_prefix(&root)
+            .map(|path| {
+                if path.as_os_str().is_empty() {
+                    ".".to_string()
+                } else {
+                    path.to_string_lossy().to_string()
+                }
+            })
+            .unwrap_or_else(|_| ".".to_string());
+
+        let mut project = ComposeProject {
+            name,
+            directory: directory.to_string_lossy().to_string(),
+            relative_directory,
+            compose_files: files
+                .iter()
+                .map(|file| file.to_string_lossy().to_string())
+                .collect(),
+            status: "unknown".to_string(),
+        };
+
+        project.status = project_status(&project);
+        projects.push(project);
+    }
+
+    projects.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
+    Ok(projects)
+}
+
+fn resolve_project(root_directory: &str, project_directory: &str) -> Result<ComposeProject, String> {
+    let root = PathBuf::from(root_directory)
+        .canonicalize()
+        .map_err(|error| format!("Dossier racine inaccessible : {error}"))?;
+    let selected = PathBuf::from(project_directory)
+        .canonicalize()
+        .map_err(|error| format!("Projet introuvable : {error}"))?;
+
+    if !selected.starts_with(&root) || !selected.is_dir() {
+        return Err("Le projet sélectionné est en dehors du dossier autorisé.".to_string());
+    }
+
+    scan_directory(root.to_string_lossy().as_ref())?
+        .into_iter()
+        .find(|project| {
+            PathBuf::from(&project.directory)
+                .canonicalize()
+                .is_ok_and(|path| path == selected)
+        })
+        .ok_or_else(|| "Ce projet ne contient plus de fichier Docker Compose reconnu.".to_string())
+}
+
+#[tauri::command]
+pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri_plugin_dialog::DialogExt;
+
+        app.dialog()
+            .file()
+            .blocking_pick_folder()
+            .map(|path| {
+                path.into_path()
+                    .map(|path| path.to_string_lossy().to_string())
+                    .map_err(|error| format!("Chemin sélectionné invalide : {error}"))
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|error| format!("Le sélecteur de dossier a échoué : {error}"))?
+}
+
+#[tauri::command]
+pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<ComposeProject>, String> {
+    tauri::async_runtime::spawn_blocking(move || scan_directory(&root_directory))
+        .await
+        .map_err(|error| format!("L'analyse du dossier a échoué : {error}"))?
+}
+
+#[tauri::command]
+pub async fn run_compose_action(
+    root_directory: String,
+    project_directory: String,
+    action: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let project = resolve_project(&root_directory, &project_directory)?;
+        let command: &[&str] = match action.as_str() {
+            "start" => &["up", "--detach"],
+            "stop" => &["stop"],
+            "restart" => &["restart"],
+            "pull" => &["pull"],
+            _ => return Err("Action non autorisée.".to_string()),
+        };
+
+        let mut args = compose_base_args(&project);
+        args.extend(command.iter().map(|part| (*part).to_string()));
+        run_docker(&args).map(output_text)
+    })
+    .await
+    .map_err(|error| format!("L'action Docker a échoué : {error}"))?
+}
+
+#[tauri::command]
+pub async fn get_compose_logs(
+    root_directory: String,
+    project_directory: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let project = resolve_project(&root_directory, &project_directory)?;
+        let mut args = compose_base_args(&project);
+        args.extend([
+            "logs".to_string(),
+            "--tail".to_string(),
+            "250".to_string(),
+            "--no-color".to_string(),
+            "--timestamps".to_string(),
+        ]);
+        run_docker(&args).map(output_text)
+    })
+    .await
+    .map_err(|error| format!("La récupération des logs a échoué : {error}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_compose_file_name, is_ignored_directory};
+
+    #[test]
+    fn recognizes_supported_compose_yaml_names() {
+        for file in [
+            "compose.yaml",
+            "compose.yml",
+            "docker-compose.yaml",
+            "docker-compose.yml",
+            "compose.override.yaml",
+            "docker-compose.prod.yml",
+        ] {
+            assert!(is_compose_file_name(file), "{file} should be recognized");
+        }
+    }
+
+    #[test]
+    fn ignores_non_compose_and_non_yaml_files() {
+        for file in [
+            "config.yaml",
+            "compose.yaml.example",
+            "docker-compose.json",
+            "compose.txt",
+            "my-compose.yaml",
+        ] {
+            assert!(!is_compose_file_name(file), "{file} should be ignored");
+        }
+    }
+
+    #[test]
+    fn skips_generated_and_dependency_directories() {
+        assert!(is_ignored_directory("node_modules"));
+        assert!(is_ignored_directory(".git"));
+        assert!(is_ignored_directory("target"));
+        assert!(!is_ignored_directory("my-app"));
+    }
+}
