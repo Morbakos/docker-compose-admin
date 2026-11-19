@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "docker-compose-admin",
+  "productName": "Compose Admin",
   "version": "0.1.0",
   "identifier": "com.alexis.docker-compose-admin",
   "build": {
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "docker-compose-admin",
-        "width": 800,
-        "height": 600
+        "title": "Compose Admin",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640
       }
     ],
     "security": {
