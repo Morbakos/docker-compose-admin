@@ -44,6 +44,15 @@ export class AppComponent {
   });
 
   constructor() {
+    const savedSelections = localStorage.getItem("compose-admin.service-selections");
+    if (savedSelections) {
+      try {
+        this.serviceSelections.set(JSON.parse(savedSelections) as Record<string, string[]>);
+      } catch {
+        localStorage.removeItem("compose-admin.service-selections");
+      }
+    }
+
     const refreshTimer = window.setInterval(() => {
       void this.refreshDockerStatus();
       if (this.dockerEngine().connected && this.rootDirectory() && !this.scanning()) {
