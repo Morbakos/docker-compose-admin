@@ -11,7 +11,7 @@ export type { ComposeContainer, ComposeProject, DockerEngineStatus };
 export type DockerEngineStatusWithChecking = DockerEngineStatus & {
 	checking?: boolean;
 };
-export type ComposeAction = "start" | "stop" | "restart" | "pull";
+export type ComposeAction = "start" | "stop" | "restart" | "pull" | "build";
 
 @Injectable({ providedIn: "root" })
 export class DockerService {
