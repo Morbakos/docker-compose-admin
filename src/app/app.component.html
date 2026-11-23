@@ -80,9 +80,9 @@
                   <div class="project-info"><strong>{{ project.name }}</strong><span>{{ project.relativeDirectory }} · {{ project.composeFiles.length }} fichier(s)</span></div>
                   <span class="status-pill" [class.status-running]="isRunning(project)"><span></span>{{ statusLabel(project) }}</span>
                   <div class="quick-actions" (click)="$event.stopPropagation()">
-                    @if (!isRunning(project)) { <button class="quick-action start-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'start')">Démarrer</button> }
+                    @if (!isRunning(project)) { <button class="quick-action start-action" type="button" [disabled]="busyDirectory() === project.directory || selectedServices(project).length === 0" (click)="runAction(project, 'start')">Démarrer</button> }
                     @else { <button class="quick-action stop-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'stop')">Arrêter</button> }
-                    <button class="more-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'restart')" aria-label="Redémarrer le projet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg></button>
+                    <button class="more-action" type="button" [disabled]="busyDirectory() === project.directory || selectedServices(project).length === 0" (click)="runAction(project, 'restart')" aria-label="Redémarrer le projet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg></button>
                   </div>
                 </article>
               }
@@ -141,7 +141,7 @@
               }
             </div>
             <div class="detail-divider"></div>
-            <div class="detail-actions">              <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'restart')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>Redémarrer</button>              <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'pull')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3"/></svg>Récupérer les images</button></div>
+            <div class="detail-actions">              <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory || selectedServices(project).length === 0" (click)="runAction(project, 'restart')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>Redémarrer</button>              <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'pull')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3"/></svg>Récupérer les images</button></div>
             </details>
             <strong class="detail-subheading-label">Mon application</strong>
             <div class="detail-actions">
