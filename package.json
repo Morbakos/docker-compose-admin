@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "bun run bindings && ng build",
     "watch": "ng build --watch --configuration development",
     "tauri": "tauri",
     "bindings": "cargo run --manifest-path src-tauri/Cargo.toml --bin export_bindings"
