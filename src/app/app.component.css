@@ -22,3 +22,6 @@
 .container-actions button { border:1px solid #e1e9f3; background:#fff; border-radius:5px; padding:4px 7px; color:#62738a; font:inherit; font-size:8px; cursor:pointer; }
 .container-actions button:hover:not(:disabled) { border-color:#abc4e8; color:#3f72bd; }
 .container-actions button:disabled { opacity:.5; cursor:not-allowed; }
+
+.container-ports a { color:#5575a6; background:#edf3fb; border-radius:4px; padding:3px 5px; text-decoration:none; }
+.container-ports a:hover { text-decoration:underline; }
