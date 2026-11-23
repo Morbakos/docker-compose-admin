@@ -4,8 +4,47 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::{Child, Command, Output, Stdio},
+    sync::{Mutex, OnceLock},
 };
+
+static WATCH_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
+
+fn watch_processes() -> &'static Mutex<BTreeMap<String, Child>> {
+    WATCH_PROCESSES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn stop_watch_process(directory: &str) {
+    if let Ok(mut processes) = watch_processes().lock() {
+        if let Some(mut child) = processes.remove(directory) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+fn start_watch_process(project: &ComposeProject) -> Result<String, String> {
+    stop_watch_process(&project.directory);
+    let mut args = compose_base_args(project);
+    args.extend(["up".to_string(), "--watch".to_string()]);
+    let child = Command::new("docker")
+        .args(&args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "Docker CLI introuvable. Installez Docker Desktop ou Docker Engine et vérifiez que « docker » est disponible dans le PATH.".to_string()
+            } else {
+                format!("Impossible de démarrer Docker Compose Watch : {error}")
+            }
+        })?;
+    watch_processes().lock()
+        .map_err(|_| "Gestionnaire de surveillance indisponible.".to_string())?
+        .insert(project.directory.clone(), child);
+    Ok("Environnement démarré avec la synchronisation automatique du code.".to_string())
+}
 
 const MAX_SCAN_DEPTH: usize = 16;
 const MAX_COMPOSE_FILES: usize = 500;
@@ -372,17 +411,22 @@ pub async fn run_compose_action(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&root_directory, &project_directory)?;
-        let command: &[&str] = match action.as_str() {
-            "start" => &["up", "--detach"],
-            "stop" => &["stop"],
-            "restart" => &["restart"],
-            "pull" => &["pull"],
-            _ => return Err("Action non autorisée.".to_string()),
-        };
-
-        let mut args = compose_base_args(&project);
-        args.extend(command.iter().map(|part| (*part).to_string()));
-        run_docker(&args).map(output_text)
+        match action.as_str() {
+            "start" => start_watch_process(&project),
+            "stop" => {
+                stop_watch_process(&project.directory);
+                let mut args = compose_base_args(&project);
+                args.push("stop".to_string());
+                run_docker(&args).map(output_text)
+            }
+            "restart" => start_watch_process(&project),
+            "pull" => {
+                let mut args = compose_base_args(&project);
+                args.push("pull".to_string());
+                run_docker(&args).map(output_text)
+            }
+            _ => Err("Action non autorisée.".to_string()),
+        }
     })
     .await
     .map_err(|error| format!("L'action Docker a échoué : {error}"))?
