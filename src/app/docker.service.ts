@@ -47,11 +47,13 @@ export class DockerService {
 		rootDirectory: string,
 		projectDirectory: string,
 		action: ComposeAction,
+		services: string[],
 	): Promise<string> {
 		return commands.runComposeAction(
 			rootDirectory,
 			projectDirectory,
 			action,
+			services,
 		);
 	}
 	openExternalUrl(url: string): Promise<void> {
