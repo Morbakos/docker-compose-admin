@@ -9,10 +9,20 @@ export interface ComposeProject {
   status: string;
 }
 
+export interface DockerEngineStatus {
+  connected: boolean;
+  version: string | null;
+  error: string | null;
+}
+
 export type ComposeAction = "start" | "stop" | "restart" | "pull";
 
 @Injectable({ providedIn: "root" })
 export class DockerService {
+  getEngineStatus(): Promise<DockerEngineStatus> {
+    return invoke<DockerEngineStatus>("get_docker_engine_status");
+  }
+
   chooseDirectory(): Promise<string | null> {
     return invoke<string | null>("pick_compose_directory");
   }
