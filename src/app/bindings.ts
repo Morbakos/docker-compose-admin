@@ -6,7 +6,7 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 export const commands = {
 	pickComposeDirectory: () => __TAURI_INVOKE<string | null>("pick_compose_directory"),
 	scanComposeDirectory: (rootDirectory: string) => __TAURI_INVOKE<ComposeProject[]>("scan_compose_directory", { rootDirectory }),
-	runComposeAction: (rootDirectory: string, projectDirectory: string, action: string) => __TAURI_INVOKE<string>("run_compose_action", { rootDirectory, projectDirectory, action }),
+	runComposeAction: (rootDirectory: string, projectDirectory: string, action: string, services: string[]) => __TAURI_INVOKE<string>("run_compose_action", { rootDirectory, projectDirectory, action, services }),
 	getComposeLogs: (rootDirectory: string, projectDirectory: string) => __TAURI_INVOKE<string>("get_compose_logs", { rootDirectory, projectDirectory }),
 	getDockerEngineStatus: () => __TAURI_INVOKE<DockerEngineStatus_Serialize>("get_docker_engine_status"),
 	getComposeContainers: (rootDirectory: string, projectDirectory: string) => __TAURI_INVOKE<ComposeContainer_Serialize[]>("get_compose_containers", { rootDirectory, projectDirectory }),
@@ -43,6 +43,7 @@ export type ComposeProject = {
 	directory: string,
 	relativeDirectory: string,
 	composeFiles: string[],
+	services: string[],
 	status: string,
 };
 
