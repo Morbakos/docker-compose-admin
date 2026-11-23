@@ -4,9 +4,8 @@ mod docker;
 use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    let specta_builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+pub fn specta_builder() -> Builder<tauri::Wry> {
+    Builder::<tauri::Wry>::new().commands(collect_commands![
         compose::pick_compose_directory,
         compose::scan_compose_directory,
         compose::run_compose_action,
@@ -14,14 +13,16 @@ pub fn run() {
         docker::get_docker_engine_status,
         compose::get_compose_containers,
         compose::run_compose_service_action
-    ]);
+    ])
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let specta_builder = specta_builder();
 
     #[cfg(debug_assertions)]
     specta_builder
-        .export(
-            Typescript::default(),
-            "../src/app/bindings.ts",
-        )
+        .export(Typescript::default(), "../src/app/bindings.ts")
         .expect("failed to export Tauri bindings");
 
     tauri::Builder::default()
