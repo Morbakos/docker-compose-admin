@@ -16,6 +16,10 @@ export interface DockerEngineStatus {
   checking?: boolean;
 }
 
+export interface ComposeContainer {
+  id: string; name: string; service: string; state: string; status: string;
+  ports: string[]; cpu: string | null; memory: string | null;
+}
 export type ComposeAction = "start" | "stop" | "restart" | "pull";
 
 @Injectable({ providedIn: "root" })
@@ -30,6 +34,14 @@ export class DockerService {
 
   scanDirectory(rootDirectory: string): Promise<ComposeProject[]> {
     return invoke<ComposeProject[]>("scan_compose_directory", { rootDirectory });
+  }
+
+  getContainers(rootDirectory: string, projectDirectory: string): Promise<ComposeContainer[]> {
+    return invoke<ComposeContainer[]>("get_compose_containers", { rootDirectory, projectDirectory });
+  }
+
+  runServiceAction(rootDirectory: string, projectDirectory: string, service: string, action: "start" | "stop" | "restart"): Promise<string> {
+    return invoke<string>("run_compose_service_action", { rootDirectory, projectDirectory, service, action });
   }
 
   runAction(rootDirectory: string, projectDirectory: string, action: ComposeAction): Promise<string> {
