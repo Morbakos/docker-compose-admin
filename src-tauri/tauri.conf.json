@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.alexis.docker-compose-admin",
   "build": {
-    "beforeDevCommand": "bun run bindings && bun run start",
+    "beforeDevCommand": "bun run start",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist/docker-compose-admin/browser"
