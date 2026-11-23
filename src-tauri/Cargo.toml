@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["Morbakos"]
 edition = "2024"
-default-run = "docker-compose-admin"
 
 [lib]
 name = "docker_compose_admin_lib"
