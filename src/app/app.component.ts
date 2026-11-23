@@ -200,6 +200,24 @@ export class AppComponent {
     catch (error) { this.logs.set(this.errorMessage(error)); }
     finally { this.logRequestActive = false; }
   }
+  applicationUrl(project: ComposeProject): string | null {
+    if (this.selectedDirectory() !== project.directory) return null;
+    for (const container of this.containers()) {
+      for (const port of container.ports) {
+        const url = this.portUrl(port);
+        if (url) return url;
+      }
+    }
+    return null;
+  }
+
+  async openApplication(project: ComposeProject): Promise<void> {
+    const url = this.applicationUrl(project);
+    if (!url) { this.setNotice("info", "Aucun port HTTP publié détecté pour cette application."); return; }
+    try { await this.docker.openExternalUrl(url); }
+    catch (error) { this.setNotice("error", this.errorMessage(error)); }
+  }
+
   portUrl(port: string): string | null {
     const match = port.match(/^(?:[^:]+:)?(\d+):(\d+)(?:\/(tcp|udp))?$/i);
     return match && (!match[3] || match[3].toLowerCase() === "tcp") ? "http://localhost:" + match[1] : null;
