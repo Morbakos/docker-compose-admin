@@ -46,3 +46,11 @@
 .advanced-details[open] > summary {
   margin-bottom: 0.75rem;
 }
+
+.service-selection { margin-top: 10px; }
+.service-selection-actions { display:flex; gap:8px; margin:8px 0; }
+.service-selection-actions button { border:0; padding:0; background:transparent; color:var(--accent,#4779bd); font:inherit; font-size:10px; cursor:pointer; }
+.service-selection-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.service-option { display:flex; align-items:center; gap:7px; min-width:0; padding:7px 8px; border:1px solid #e7edf5; border-radius:7px; background:#fff; color:#526176; font-size:10px; cursor:pointer; }
+.service-option input { accent-color:var(--accent,#4779bd); margin:0; }
+.service-option span { overflow-wrap:anywhere; }
