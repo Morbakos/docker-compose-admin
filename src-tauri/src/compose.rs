@@ -1,7 +1,7 @@
 use serde::Serialize;
 use serde_json::Value;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
@@ -23,10 +23,18 @@ fn stop_watch_process(directory: &str) {
     }
 }
 
-fn start_watch_process(project: &ComposeProject) -> Result<String, String> {
+fn start_watch_process(project: &ComposeProject, selected_services: &[String]) -> Result<String, String> {
+    let available: BTreeSet<&str> = project.services.iter().map(String::as_str).collect();
+    if selected_services.is_empty() {
+        return Err("Sélectionnez au moins un service à démarrer.".to_string());
+    }
+    if selected_services.iter().any(|service| !available.contains(service.as_str())) {
+        return Err("La sélection contient un service inconnu pour ce projet.".to_string());
+    }
     stop_watch_process(&project.directory);
     let mut args = compose_base_args(project);
     args.extend(["up".to_string(), "--watch".to_string()]);
+    args.extend(selected_services.iter().cloned());
     let child = Command::new("docker")
         .args(&args)
         .stdin(Stdio::null())
@@ -56,6 +64,7 @@ pub struct ComposeProject {
     pub directory: String,
     pub relative_directory: String,
     pub compose_files: Vec<String>,
+    pub services: Vec<String>,
     pub status: String,
 }
 
@@ -240,6 +249,21 @@ fn output_text(output: Output) -> String {
     }
 }
 
+fn compose_services(project: &ComposeProject) -> Result<Vec<String>, String> {
+    let mut args = compose_base_args(project);
+    args.extend(["config".to_string(), "--services".to_string()]);
+    let output = run_docker(&args)?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut services: Vec<String> = text.lines()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .collect();
+    services.sort();
+    services.dedup();
+    Ok(services)
+}
+
 fn project_status(project: &ComposeProject) -> String {
     let mut args = compose_base_args(project);
     args.extend(["ps".to_string(), "--all".to_string(), "--format".to_string(), "json".to_string()]);
@@ -344,9 +368,11 @@ fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
                 .iter()
                 .map(|file| file.to_string_lossy().to_string())
                 .collect(),
+            services: Vec::new(),
             status: "unknown".to_string(),
         };
 
+        project.services = compose_services(&project).unwrap_or_default();
         project.status = project_status(&project);
         projects.push(project);
     }
@@ -411,21 +437,23 @@ pub async fn run_compose_action(
     root_directory: String,
     project_directory: String,
     action: String,
+    services: Vec<String>,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&root_directory, &project_directory)?;
         match action.as_str() {
-            "start" => start_watch_process(&project),
+            "start" | "restart" => start_watch_process(&project, &services),
             "stop" => {
                 stop_watch_process(&project.directory);
                 let mut args = compose_base_args(&project);
                 args.push("stop".to_string());
+                args.extend(services.iter().cloned());
                 run_docker(&args).map(output_text)
             }
-            "restart" => start_watch_process(&project),
             "pull" => {
                 let mut args = compose_base_args(&project);
                 args.push("pull".to_string());
+                args.extend(services.iter().cloned());
                 run_docker(&args).map(output_text)
             }
             _ => Err("Action non autorisée.".to_string()),
