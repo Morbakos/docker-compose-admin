@@ -30,7 +30,7 @@ fn validate_selected_services(
 ) -> Result<Vec<String>, String> {
     if selected_services.is_empty() {
         return if required {
-            Err("Sélectionnez au moins un service à démarrer.".to_string())
+            Err("Sélectionnez au moins un service.".to_string())
         } else {
             Ok(Vec::new())
         };
