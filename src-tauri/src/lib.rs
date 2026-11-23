@@ -1,4 +1,5 @@
 mod compose;
+mod docker;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -9,7 +10,8 @@ pub fn run() {
             compose::pick_compose_directory,
             compose::scan_compose_directory,
             compose::run_compose_action,
-            compose::get_compose_logs
+            compose::get_compose_logs,
+            docker::get_docker_engine_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
