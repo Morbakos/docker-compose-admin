@@ -99,6 +99,26 @@
             <div class="detail-subheading"><strong>Fichiers Compose</strong><span>{{ project.composeFiles.length }}</span></div>
             <div class="file-list">@for (file of project.composeFiles; track file) { <div class="file-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10Z"/><path d="M13 3v7h7M8 15h8M8 18h5"/></svg><span [title]="file">{{ file }}</span></div> }</div>
             <div class="detail-divider"></div>
+            <div class="service-selection">
+              <div class="detail-subheading"><strong>Services à démarrer</strong><span>{{ selectedServices(project).length }}/{{ project.services.length }}</span></div>
+              @if (project.services.length === 0) {
+                <p class="muted-copy">Aucun service détecté. Vérifiez que Docker est disponible et que le fichier Compose est valide.</p>
+              } @else {
+                <div class="service-selection-actions">
+                  <button type="button" (click)="selectAllServices(project)">Tout sélectionner</button>
+                  <button type="button" (click)="clearSelectedServices(project)">Tout désélectionner</button>
+                </div>
+                <div class="service-selection-list">
+                  @for (service of project.services; track service) {
+                    <label class="service-option">
+                      <input type="checkbox" [checked]="isServiceSelected(project, service)" (change)="toggleService(project, service)" />
+                      <span>{{ service }}</span>
+                    </label>
+                  }
+                </div>
+              }
+            </div>
+            <div class="detail-divider"></div>
             <div class="container-section">
               <div class="detail-subheading"><strong>Containers & services</strong><span>{{ containers().length }}</span></div>
               @if (containersLoading()) { <p class="muted-copy">Chargement des containers…</p> }
@@ -126,7 +146,7 @@
             <strong class="detail-subheading-label">Mon application</strong>
             <div class="detail-actions">
               <button class="primary-action" type="button" [disabled]="!applicationUrl(project)" (click)="openApplication(project)">🌐 Ouvrir l’application</button>
-              @if (!isRunning(project)) { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'start')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none"/></svg>Démarrer</button> }
+              @if (!isRunning(project)) { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory || selectedServices(project).length === 0" (click)="runAction(project, 'start')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none"/></svg>Démarrer</button> }
               @else { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'stop')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg>Arrêter</button> }
 
 
