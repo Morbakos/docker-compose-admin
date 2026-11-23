@@ -35,6 +35,7 @@ Le modèle de données et les écrans doivent rester extensibles à plusieurs pr
 
 - **Angular + TypeScript** : interface utilisateur.
 - **Tauri 2 + Rust** : accès local au système et orchestration.
+- **Tauri Specta 2** : génération des bindings TypeScript à partir des commandes et types Rust ; les commandes du frontend doivent passer par `src/app/bindings.ts`.
 - **Docker Compose CLI v2** : unique interface de pilotage Docker ; ne pas ajouter de dépendance à l'API propriétaire de Docker Desktop.
 - Le code source reste sur la machine de l'utilisateur ; Docker Compose Watch applique les règles de synchronisation du dépôt.
 - Ne pas demander aux utilisateurs de configurer manuellement .NET, Node.js, Angular ou les registres npm privés.
@@ -86,6 +87,6 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib
 
 ## CI multiplateforme
 
-Le workflow `.github/workflows/ci.yml` construit le frontend Angular, exécute les tests Rust et compile le binaire Tauri sur Windows, Ubuntu et macOS pour chaque push et pull request vers `main`.
+Le workflow `.github/workflows/ci.yml` construit le frontend Angular, exécute les tests Rust et compile le binaire Tauri sur Windows, Ubuntu et macOS pour les push sur `main` et `feat/compose-dashboard-mvp`, ainsi que les pull requests vers `main`.
 
-La CI valide la compilation et les tests unitaires, mais ne teste pas les opérations Docker contre un moteur réel. Il faut une validation manuelle avec Docker Compose v2 et un projet contenant des règles `develop.watch`.
+La CI valide la compilation et les tests unitaires, mais ne teste pas les opérations Docker contre un moteur réel. Tauri Specta exporte les bindings dans `src/app/bindings.ts` en mode debug ; après modification d'une commande ou d'un type Rust, vérifier et committer les bindings générés. Il faut une validation manuelle avec Docker Compose v2 et un projet contenant des règles `develop.watch`.
