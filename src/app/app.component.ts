@@ -109,7 +109,9 @@ export class AppComponent {
       for (const project of projects) {
         const previous = previousSelections[project.directory];
         if (previous !== undefined) {
-          nextSelections[project.directory] = previous.filter((service) => project.services.includes(service));
+          nextSelections[project.directory] = project.services.length > 0
+            ? previous.filter((service) => project.services.includes(service))
+            : previous;
         } else if (project.services.length > 0) {
           nextSelections[project.directory] = [...project.services];
         }
