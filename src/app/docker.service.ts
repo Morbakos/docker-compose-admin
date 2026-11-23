@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { commands, type ComposeContainer, type ComposeProject, type DockerEngineStatus } from "./bindings";
 
-export type { ComposeContainer, ComposeProject };
+export type { ComposeContainer, ComposeProject, DockerEngineStatus };
 export interface DockerEngineStatusWithChecking extends DockerEngineStatus {
   checking?: boolean;
 }
