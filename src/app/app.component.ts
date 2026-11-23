@@ -25,6 +25,7 @@ export class AppComponent {
   readonly logsDirectory = signal<string | null>(null);
   readonly containers = signal<ComposeContainer[]>([]);
   readonly containersLoading = signal(false);
+  readonly serviceSelections = signal<Record<string, string[]>>({});
   private logRefreshTimer: number | null = null;
   private logRequestActive = false;
   readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
@@ -94,6 +95,16 @@ export class AppComponent {
     try {
       const projects = await this.docker.scanDirectory(root);
       this.projects.set(projects);
+      const previousSelections = this.serviceSelections();
+      const nextSelections: Record<string, string[]> = {};
+      for (const project of projects) {
+        const previous = previousSelections[project.directory];
+        nextSelections[project.directory] = previous
+          ? previous.filter((service) => project.services.includes(service))
+          : [...project.services];
+      }
+      this.serviceSelections.set(nextSelections);
+      this.persistServiceSelections();
       const selected = this.selectedDirectory();
       if (!selected || !projects.some((project) => project.directory === selected)) {
         this.selectedDirectory.set(projects[0]?.directory ?? null);
@@ -124,6 +135,37 @@ export class AppComponent {
     finally { this.containersLoading.set(false); }
   }
 
+  selectedServices(project: ComposeProject): string[] {
+    return this.serviceSelections()[project.directory] ?? project.services;
+  }
+
+  isServiceSelected(project: ComposeProject, service: string): boolean {
+    return this.selectedServices(project).includes(service);
+  }
+
+  toggleService(project: ComposeProject, service: string): void {
+    const current = this.selectedServices(project);
+    const next = current.includes(service)
+      ? current.filter((item) => item !== service)
+      : [...current, service];
+    this.serviceSelections.update((selections) => ({ ...selections, [project.directory]: next }));
+    this.persistServiceSelections();
+  }
+
+  selectAllServices(project: ComposeProject): void {
+    this.serviceSelections.update((selections) => ({ ...selections, [project.directory]: [...project.services] }));
+    this.persistServiceSelections();
+  }
+
+  clearSelectedServices(project: ComposeProject): void {
+    this.serviceSelections.update((selections) => ({ ...selections, [project.directory]: [] }));
+    this.persistServiceSelections();
+  }
+
+  private persistServiceSelections(): void {
+    localStorage.setItem("compose-admin.service-selections", JSON.stringify(this.serviceSelections()));
+  }
+
   async runServiceAction(container: ComposeContainer, action: "start" | "stop" | "restart"): Promise<void> {
     const root = this.rootDirectory(), project = this.selectedProject();
     if (!root || !project || this.busyDirectory()) return;
@@ -146,10 +188,16 @@ export class AppComponent {
     const root = this.rootDirectory();
     if (!root || this.busyDirectory()) return;
 
+    const services = this.selectedServices(project);
+    if ((action === "start" || action === "restart") && services.length === 0) {
+      this.setNotice("error", "Sélectionnez au moins un service à démarrer.");
+      return;
+    }
+
     this.busyDirectory.set(project.directory);
     this.setNotice("info", this.actionProgress(action, project.name));
     try {
-      const result = await this.docker.runAction(root, project.directory, action);
+      const result = await this.docker.runAction(root, project.directory, action, services);
       this.setNotice("success", result || this.actionSuccess(action, project.name));
       await this.refreshProjects();
     } catch (error) {
