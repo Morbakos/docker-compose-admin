@@ -52,7 +52,7 @@ fn validate_selected_services(
 fn start_watch_process(project: &ComposeProject, selected_services: &[String]) -> Result<String, String> {
     stop_watch_process(&project.directory);
     let mut args = compose_base_args(project);
-    args.extend(["up".to_string(), "--watch".to_string()]);
+    args.extend(["up".to_string(), "--build".to_string(), "--watch".to_string()]);
     args.extend(selected_services.iter().cloned());
     let child = Command::new("docker")
         .args(&args)
