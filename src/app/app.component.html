@@ -21,8 +21,8 @@
     </div>
     <div class="sidebar-footer">
       <div class="docker-mark">D</div>
-      <div class="connection-copy"><strong>Docker Engine</strong><span>Via Docker Compose CLI</span></div>
-      <span class="connection-indicator"></span>
+      <div class="connection-copy"><strong>Docker Engine</strong><span>{{ dockerEngine().connected ? "Connecté · v" + dockerEngine().version : dockerEngine().checking ? "Vérification…" : "Indisponible" }}</span></div>
+      <span class="connection-indicator" [class.is-connected]="dockerEngine().connected" [class.is-disconnected]="!dockerEngine().connected && !dockerEngine().checking" [class.is-checking]="dockerEngine().checking" [title]="dockerEngine().error ?? "État Docker Engine""></span>
     </div>
   </aside>
 
