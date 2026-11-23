@@ -49,7 +49,7 @@ fn start_watch_process(project: &ComposeProject) -> Result<String, String> {
 const MAX_SCAN_DEPTH: usize = 16;
 const MAX_COMPOSE_FILES: usize = 500;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeProject {
     pub name: String,
@@ -378,6 +378,7 @@ fn resolve_project(root_directory: &str, project_directory: &str) -> Result<Comp
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         use tauri_plugin_dialog::DialogExt;
@@ -397,6 +398,7 @@ pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<Stri
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<ComposeProject>, String> {
     tauri::async_runtime::spawn_blocking(move || scan_directory(&root_directory))
         .await
@@ -404,6 +406,7 @@ pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<Compos
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn run_compose_action(
     root_directory: String,
     project_directory: String,
@@ -433,6 +436,7 @@ pub async fn run_compose_action(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_compose_logs(
     root_directory: String,
     project_directory: String,
@@ -454,7 +458,7 @@ pub async fn get_compose_logs(
 }
 
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeContainer {
     pub id: String,
@@ -525,12 +529,14 @@ fn container_list(root_directory: &str, project_directory: &str) -> Result<Vec<C
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_compose_containers(root_directory: String, project_directory: String) -> Result<Vec<ComposeContainer>, String> {
     tauri::async_runtime::spawn_blocking(move || container_list(&root_directory, &project_directory))
         .await.map_err(|e| format!("Récupération des containers impossible : {e}"))?
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn run_compose_service_action(root_directory: String, project_directory: String, service: String, action: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         if service.is_empty() || !service.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')) {
