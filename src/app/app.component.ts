@@ -1,5 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from "@angular/core";
-import { ComposeAction, ComposeContainer, ComposeProject, DockerEngineStatus, DockerService } from "./docker.service";
+import { ComposeAction, ComposeContainer, ComposeProject, DockerEngineStatusWithChecking, DockerService } from "./docker.service";
 
 type NoticeKind = "success" | "error" | "info";
 
@@ -12,7 +12,7 @@ type NoticeKind = "success" | "error" | "info";
 export class AppComponent {
   private readonly docker = inject(DockerService);
 
-  readonly dockerEngine = signal<DockerEngineStatus>({ connected: false, version: null, error: null, checking: true });
+  readonly dockerEngine = signal<DockerEngineStatusWithChecking>({ connected: false, version: null, error: null, checking: true });
   readonly rootDirectory = signal<string | null>(null);
   readonly projects = signal<ComposeProject[]>([]);
   readonly selectedDirectory = signal<string | null>(null);
