@@ -42,7 +42,7 @@ export class AppComponent {
     const refreshTimer = window.setInterval(() => {
       void this.refreshDockerStatus();
       if (this.dockerEngine().connected && this.rootDirectory() && !this.scanning()) {
-        void this.refreshProjects();
+        void this.refreshProjects(true);
       }
     }, 15000);
     inject(DestroyRef).onDestroy(() => window.clearInterval(refreshTimer));
@@ -63,7 +63,7 @@ export class AppComponent {
       localStorage.setItem("compose-admin.root-directory", selected);
       this.selectedDirectory.set(null);
       this.dismissLogs();
-      await this.refreshProjects();
+      await this.refreshProjects(true);
     } catch (error) {
       this.setNotice("error", this.errorMessage(error));
     } finally {
@@ -81,7 +81,7 @@ export class AppComponent {
     }
   }
 
-  async refreshProjects(): Promise<void> {
+  async refreshProjects(silent = false): Promise<void> {
     if (this.scanning()) return;
     const root = this.rootDirectory();
     if (!root) return;
@@ -94,7 +94,7 @@ export class AppComponent {
       if (!selected || !projects.some((project) => project.directory === selected)) {
         this.selectedDirectory.set(projects[0]?.directory ?? null);
       }
-      this.clearNotice();
+      if (!silent) this.clearNotice();
     } catch (error) {
       this.setNotice("error", this.errorMessage(error));
     } finally {
