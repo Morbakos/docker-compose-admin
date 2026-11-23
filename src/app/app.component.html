@@ -108,7 +108,7 @@
                     <article class="container-card">
                       <div class="container-head"><div><strong>{{ container.service || container.name }}</strong><small>{{ container.name }}</small></div><span class="container-status" [class.container-running]="container.state === 'running'">{{ container.status }}</span></div>
                       <div class="container-metrics"><span>CPU <b>{{ container.cpu ?? '—' }}</b></span><span>RAM <b>{{ container.memory ?? '—' }}</b></span></div>
-                      @if (container.ports.length) { <div class="container-ports"><span>Ports</span>@for (port of container.ports; track port) { <code>{{ port }}</code> }</div> }
+                      @if (container.ports.length) { <div class="container-ports"><span>Ports</span>@for (port of container.ports; track port) { @if (portUrl(port); as url) { <a [href]=\"url\" target=\"_blank\" rel=\"noopener\">{{ port }}</a> } @else { <code>{{ port }}</code> } }</div> }
                       <div class="container-actions">
                         @if (container.state !== 'running') { <button type="button" [disabled]="busyDirectory()" (click)="runServiceAction(container, 'start')">Start</button> }
                         @else { <button type="button" [disabled]="busyDirectory()" (click)="runServiceAction(container, 'stop')">Stop</button> }
