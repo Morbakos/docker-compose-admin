@@ -48,6 +48,10 @@ export class DockerService {
     return invoke<string>("run_compose_action", { rootDirectory, projectDirectory, action });
   }
 
+  openExternalUrl(url: string): Promise<void> {
+    return import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(url));
+  }
+
   getLogs(rootDirectory: string, projectDirectory: string): Promise<string> {
     return invoke<string>("get_compose_logs", { rootDirectory, projectDirectory });
   }
