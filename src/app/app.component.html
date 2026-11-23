@@ -22,7 +22,7 @@
     <div class="sidebar-footer">
       <div class="docker-mark">D</div>
       <div class="connection-copy"><strong>Docker Engine</strong><span>{{ dockerEngine().connected ? "Connecté · v" + dockerEngine().version : dockerEngine().checking ? "Vérification…" : "Indisponible" }}</span></div>
-      <span class="connection-indicator" [class.is-connected]="dockerEngine().connected" [class.is-disconnected]="!dockerEngine().connected && !dockerEngine().checking" [class.is-checking]="dockerEngine().checking" [title]="dockerEngine().error ?? "État Docker Engine""></span>
+      <span class="connection-indicator" [class.is-connected]="dockerEngine().connected" [class.is-disconnected]="!dockerEngine().connected && !dockerEngine().checking" [class.is-checking]="dockerEngine().checking" [title]="dockerEngine().error"></span>
     </div>
   </aside>
 
@@ -97,6 +97,28 @@
             <div class="detail-divider"></div>
             <div class="detail-subheading"><strong>Fichiers Compose</strong><span>{{ project.composeFiles.length }}</span></div>
             <div class="file-list">@for (file of project.composeFiles; track file) { <div class="file-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10Z"/><path d="M13 3v7h7M8 15h8M8 18h5"/></svg><span [title]="file">{{ file }}</span></div> }</div>
+            <div class="detail-divider"></div>
+            <div class="container-section">
+              <div class="detail-subheading"><strong>Containers & services</strong><span>{{ containers().length }}</span></div>
+              @if (containersLoading()) { <p class="muted-copy">Chargement des containers…</p> }
+              @else if (containers().length === 0) { <p class="muted-copy">Aucun container associé à cette stack.</p> }
+              @else {
+                <div class="container-list">
+                  @for (container of containers(); track container.id) {
+                    <article class="container-card">
+                      <div class="container-head"><div><strong>{{ container.service || container.name }}</strong><small>{{ container.name }}</small></div><span class="container-status" [class.container-running]="container.state === 'running'">{{ container.status }}</span></div>
+                      <div class="container-metrics"><span>CPU <b>{{ container.cpu ?? '—' }}</b></span><span>RAM <b>{{ container.memory ?? '—' }}</b></span></div>
+                      @if (container.ports.length) { <div class="container-ports"><span>Ports</span>@for (port of container.ports; track port) { <code>{{ port }}</code> }</div> }
+                      <div class="container-actions">
+                        @if (container.state !== 'running') { <button type="button" [disabled]="busyDirectory()" (click)="runServiceAction(container, 'start')">Start</button> }
+                        @else { <button type="button" [disabled]="busyDirectory()" (click)="runServiceAction(container, 'stop')">Stop</button> }
+                        <button type="button" [disabled]="busyDirectory()" (click)="runServiceAction(container, 'restart')">Restart</button>
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+            </div>
             <div class="detail-divider"></div>
             <strong class="detail-subheading-label">Actions du projet</strong>
             <div class="detail-actions">
