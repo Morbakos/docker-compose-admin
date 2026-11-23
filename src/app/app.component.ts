@@ -108,9 +108,11 @@ export class AppComponent {
       const nextSelections: Record<string, string[]> = {};
       for (const project of projects) {
         const previous = previousSelections[project.directory];
-        nextSelections[project.directory] = previous
-          ? previous.filter((service) => project.services.includes(service))
-          : [...project.services];
+        if (previous !== undefined) {
+          nextSelections[project.directory] = previous.filter((service) => project.services.includes(service));
+        } else if (project.services.length > 0) {
+          nextSelections[project.directory] = [...project.services];
+        }
       }
       this.serviceSelections.set(nextSelections);
       this.persistServiceSelections();
