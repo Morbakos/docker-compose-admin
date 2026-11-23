@@ -4,14 +4,14 @@
       <div class="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 32 32" fill="none"><path d="M5 11.5 16 5l11 6.5v9L16 27 5 20.5v-9Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m5.5 11.8 10.5 6 10.5-6M16 18v8.3M10.7 8.2l10.6 6.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       </div>
-      <div><strong>Compose Admin</strong><span>Docker workspace</span></div>
+      <div><strong>Mon environnement</strong><span>Application métier locale</span></div>
     </div>
-    <div class="sidebar-label">ESPACE DE TRAVAIL</div>
+    <div class="sidebar-label">MON APPLICATION</div>
     <div class="nav-item active">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
       Vue d'ensemble
     </div>
-    <div class="nav-caption"><span>PROJETS COMPOSE</span><span class="count-badge">{{ projects().length }}</span></div>
+    <div class="nav-caption"><span>PROJETS CONFIGURÉS</span><span class="count-badge">{{ projects().length }}</span></div>
     <div class="sidebar-projects">
       @for (project of projects(); track project.directory) {
         <button class="sidebar-project" [class.current]="selectedDirectory() === project.directory" type="button" (click)="selectProject(project.directory)">
@@ -40,7 +40,7 @@
 
     <main class="content">
       <section class="page-heading">
-        <div><div class="eyebrow">DOCKER COMPOSE</div><h1>Vue d'ensemble</h1><p>Parcourez un dossier, détectez vos stacks et pilotez vos services Docker.</p></div>
+        <div><div class="eyebrow">ENVIRONNEMENT DE TRAVAIL</div><h1>Mon application métier</h1><p>Démarrez votre environnement de travail et retrouvez votre application en un clic.</p></div>
         <button class="choose-button" type="button" (click)="chooseDirectory()" [disabled]="choosingDirectory()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h5l2 2h8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-10Z"/><path d="M12 11v5m-2-2 2 2 2-2"/></svg>
           {{ choosingDirectory() ? 'Ouverture…' : (rootDirectory() ? 'Changer de dossier' : 'Choisir un dossier') }}
@@ -54,7 +54,7 @@
       }
 
       <section class="stat-grid" aria-label="Statistiques des projets">
-        <article class="stat-card"><div class="stat-icon projects-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div class="stat-copy"><span>Projets détectés</span><strong>{{ projects().length }}</strong></div><span class="stat-caption">Dans le dossier choisi</span></article>
+        <article class="stat-card"><div class="stat-icon projects-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div class="stat-copy"><span>Projets détectés</span><strong>{{ projects().length }}</strong></div><span class="stat-caption">Environnements disponibles</span></article>
         <article class="stat-card"><div class="stat-icon running-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5 19 12 8 18.5v-13Z" fill="currentColor" stroke="none"/></svg></div><div class="stat-copy"><span>En cours</span><strong>{{ runningCount() }}</strong></div><span class="stat-caption">Stacks actives</span></article>
         <article class="stat-card"><div class="stat-icon stopped-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg></div><div class="stat-copy"><span>À l'arrêt</span><strong>{{ stoppedCount() }}</strong></div><span class="stat-caption">Stacks arrêtées</span></article>
       </section>
@@ -62,12 +62,12 @@
       <section class="workspace-grid">
         <div class="projects-section">
           <div class="section-heading">
-            <div><h2>Projets détectés</h2><p>Les fichiers Compose trouvés dans le dossier sélectionné.</p></div>
+            <div><h2>Mes applications</h2><p>Sélectionnez une application pour la démarrer ou consulter son état.</p></div>
             <label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg><input #search type="search" placeholder="Rechercher un projet…" [value]="searchTerm()" (input)="setSearchTerm(search.value)" /></label>
           </div>
 
           @if (!rootDirectory()) {
-            <div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h5l2 2h8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-10Z"/></svg></div><strong>Choisissez votre dossier de projets</strong><p>Compose Admin recherchera les fichiers compose.yaml, compose.yml et docker-compose.yml, y compris dans les sous-dossiers.</p><button class="text-button" type="button" (click)="chooseDirectory()">Parcourir les dossiers</button></div>
+            <div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h5l2 2h8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-10Z"/></svg></div><strong>Ajoutez votre application</strong><p>Sélectionnez le dossier local de votre dépôt. Nous nous occupons du démarrage des services nécessaires.</p><button class="text-button" type="button" (click)="chooseDirectory()">Parcourir les dossiers</button></div>
           } @else if (scanning() && projects().length === 0) {
             <div class="empty-state"><div class="empty-spinner"></div><strong>Analyse du dossier…</strong><p>Recherche des fichiers Docker Compose.</p></div>
           } @else if (filteredProjects().length === 0) {
@@ -92,7 +92,7 @@
 
         <aside class="details-panel">
           @if (selectedProject(); as project) {
-            <div class="details-heading"><div class="detail-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div><span class="eyebrow">PROJET SÉLECTIONNÉ</span><h2>{{ project.name }}</h2></div></div>
+            <div class="details-heading"><div class="detail-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div><span class="eyebrow">ENVIRONNEMENT SÉLECTIONNÉ</span><h2>{{ project.name }}</h2></div></div>
             <div class="detail-status-row"><span>État actuel</span><span class="status-pill" [class.status-running]="isRunning(project)"><span></span>{{ statusLabel(project) }}</span></div>
             <div class="detail-divider"></div>
             <div class="detail-subheading"><strong>Fichiers Compose</strong><span>{{ project.composeFiles.length }}</span></div>
@@ -120,8 +120,9 @@
               }
             </div>
             <div class="detail-divider"></div>
-            <strong class="detail-subheading-label">Actions du projet</strong>
+            <strong class="detail-subheading-label">Mon application</strong>
             <div class="detail-actions">
+              <button class="primary-action" type="button" [disabled]="!applicationUrl(project)" (click)="openApplication(project)">🌐 Ouvrir l’application</button>
               @if (!isRunning(project)) { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'start')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none"/></svg>Démarrer</button> }
               @else { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'stop')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg>Arrêter</button> }
               <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'restart')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>Redémarrer</button>
@@ -136,7 +137,7 @@
           }
         </aside>
       </section>
-      <footer class="page-footer"><span>Compose Admin <span>·</span> Application locale</span><span>Recherche récursive · Docker Compose CLI v2</span></footer>
+      <footer class="page-footer"><span>Compose Admin <span>·</span> Votre environnement local</span><span>Recherche récursive · Docker Compose CLI v2</span></footer>
     </main>
   </div>
 </div>
