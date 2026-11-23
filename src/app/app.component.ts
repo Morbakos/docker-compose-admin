@@ -1,5 +1,5 @@
 import { Component, computed, DestroyRef, inject, signal } from "@angular/core";
-import { ComposeAction, ComposeProject, DockerEngineStatus, DockerService } from "./docker.service";
+import { ComposeAction, ComposeContainer, ComposeProject, DockerEngineStatus, DockerService } from "./docker.service";
 
 type NoticeKind = "success" | "error" | "info";
 
@@ -23,6 +23,10 @@ export class AppComponent {
   readonly loadingLogs = signal(false);
   readonly logs = signal<string | null>(null);
   readonly logsDirectory = signal<string | null>(null);
+  readonly containers = signal<ComposeContainer[]>([]);
+  readonly containersLoading = signal(false);
+  private logRefreshTimer: number | null = null;
+  private logRequestActive = false;
   readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
 
   readonly runningCount = computed(() => this.projects().filter((project) => project.status === "running").length);
@@ -45,7 +49,7 @@ export class AppComponent {
         void this.refreshProjects(true);
       }
     }, 15000);
-    inject(DestroyRef).onDestroy(() => window.clearInterval(refreshTimer));
+    inject(DestroyRef).onDestroy(() => { window.clearInterval(refreshTimer); this.stopLogPolling(); });
     void this.refreshDockerStatus();
     const savedDirectory = localStorage.getItem("compose-admin.root-directory");
     if (savedDirectory) {
@@ -94,6 +98,8 @@ export class AppComponent {
       if (!selected || !projects.some((project) => project.directory === selected)) {
         this.selectedDirectory.set(projects[0]?.directory ?? null);
       }
+      const chosen = projects.find(p => p.directory === this.selectedDirectory());
+      if (chosen) void this.refreshContainers(chosen); else this.containers.set([]);
       if (!silent) this.clearNotice();
     } catch (error) {
       this.setNotice("error", this.errorMessage(error));
@@ -105,6 +111,31 @@ export class AppComponent {
   selectProject(projectDirectory: string): void {
     this.selectedDirectory.set(projectDirectory);
     this.dismissLogs();
+    const project = this.projects().find(p => p.directory === projectDirectory);
+    if (project) void this.refreshContainers(project);
+  }
+
+  async refreshContainers(project: ComposeProject): Promise<void> {
+    const root = this.rootDirectory();
+    if (!root) return;
+    this.containersLoading.set(true);
+    try { this.containers.set(await this.docker.getContainers(root, project.directory)); }
+    catch (error) { this.containers.set([]); this.setNotice("error", this.errorMessage(error)); }
+    finally { this.containersLoading.set(false); }
+  }
+
+  async runServiceAction(container: ComposeContainer, action: "start" | "stop" | "restart"): Promise<void> {
+    const root = this.rootDirectory(), project = this.selectedProject();
+    if (!root || !project || this.busyDirectory()) return;
+    this.busyDirectory.set(project.directory);
+    this.setNotice("info", action + " service " + container.service + "…");
+    try {
+      const result = await this.docker.runServiceAction(root, project.directory, container.service, action);
+      this.setNotice("success", result || ("Service " + container.service + " : " + action + " effectué."));
+      await this.refreshContainers(project);
+      await this.refreshProjects(true);
+    } catch (error) { this.setNotice("error", this.errorMessage(error)); }
+    finally { this.busyDirectory.set(null); }
   }
 
   setSearchTerm(value: string): void {
@@ -138,6 +169,7 @@ export class AppComponent {
     try {
       const result = await this.docker.getLogs(root, project.directory);
       this.logs.set(result || "Aucun log disponible pour ce projet.");
+      this.startLogPolling(project);
     } catch (error) {
       this.logs.set(this.errorMessage(error));
     } finally {
@@ -146,10 +178,28 @@ export class AppComponent {
   }
 
   dismissLogs(): void {
+    this.stopLogPolling();
     this.logs.set(null);
     this.logsDirectory.set(null);
   }
 
+  private startLogPolling(project: ComposeProject): void {
+    this.stopLogPolling();
+    this.logRefreshTimer = window.setInterval(() => void this.pollLogs(project), 3000);
+  }
+  private stopLogPolling(): void {
+    if (this.logRefreshTimer !== null) window.clearInterval(this.logRefreshTimer);
+    this.logRefreshTimer = null;
+    this.logRequestActive = false;
+  }
+  private async pollLogs(project: ComposeProject): Promise<void> {
+    const root = this.rootDirectory();
+    if (!root || this.logRequestActive || this.logsDirectory() !== project.directory) return;
+    this.logRequestActive = true;
+    try { const content = await this.docker.getLogs(root, project.directory); this.logs.set(content || "Aucun log disponible pour ce projet."); }
+    catch (error) { this.logs.set(this.errorMessage(error)); }
+    finally { this.logRequestActive = false; }
+  }
   isRunning(project: ComposeProject): boolean {
     return project.status === "running";
   }
