@@ -28,7 +28,7 @@
 
   <div class="main-shell">
     <header class="topbar">
-      <div class="breadcrumb"><span>Workspace</span><span class="breadcrumb-separator">/</span><strong>Vue d'ensemble</strong></div>
+      <div class="breadcrumb"><span>Workspace</span><span class="breadcrumb-separator">/</span><strong>Mon application</strong></div>
       <div class="topbar-actions">
         <span class="local-badge"><span></span> LOCAL</span>
         @if (rootDirectory(); as root) { <span class="folder-path" [title]="root">{{ root }}</span> }
@@ -54,7 +54,7 @@
       }
 
       <section class="stat-grid" aria-label="Statistiques des projets">
-        <article class="stat-card"><div class="stat-icon projects-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div class="stat-copy"><span>Projets détectés</span><strong>{{ projects().length }}</strong></div><span class="stat-caption">Environnements disponibles</span></article>
+        <article class="stat-card"><div class="stat-icon projects-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div class="stat-copy"><span>Applications</span><strong>{{ projects().length }}</strong></div><span class="stat-caption">Environnements disponibles</span></article>
         <article class="stat-card"><div class="stat-icon running-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5 19 12 8 18.5v-13Z" fill="currentColor" stroke="none"/></svg></div><div class="stat-copy"><span>En cours</span><strong>{{ runningCount() }}</strong></div><span class="stat-caption">Stacks actives</span></article>
         <article class="stat-card"><div class="stat-icon stopped-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg></div><div class="stat-copy"><span>À l'arrêt</span><strong>{{ stoppedCount() }}</strong></div><span class="stat-caption">Stacks arrêtées</span></article>
       </section>
