@@ -94,6 +94,7 @@
           @if (selectedProject(); as project) {
             <div class="details-heading"><div class="detail-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12.1V21"/></svg></div><div><span class="eyebrow">ENVIRONNEMENT SÉLECTIONNÉ</span><h2>{{ project.name }}</h2></div></div>
             <div class="detail-status-row"><span>État actuel</span><span class="status-pill" [class.status-running]="isRunning(project)"><span></span>{{ statusLabel(project) }}</span></div>
+            <details class="advanced-details"><summary>Options avancées · fichiers Compose et services</summary>
             <div class="detail-divider"></div>
             <div class="detail-subheading"><strong>Fichiers Compose</strong><span>{{ project.composeFiles.length }}</span></div>
             <div class="file-list">@for (file of project.composeFiles; track file) { <div class="file-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10Z"/><path d="M13 3v7h7M8 15h8M8 18h5"/></svg><span [title]="file">{{ file }}</span></div> }</div>
@@ -120,12 +121,12 @@
               }
             </div>
             <div class="detail-divider"></div>
+            </details>
             <strong class="detail-subheading-label">Mon application</strong>
             <div class="detail-actions">
               <button class="primary-action" type="button" [disabled]="!applicationUrl(project)" (click)="openApplication(project)">🌐 Ouvrir l’application</button>
               @if (!isRunning(project)) { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'start')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" fill="currentColor" stroke="none"/></svg>Démarrer</button> }
               @else { <button class="primary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'stop')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></svg>Arrêter</button> }
-              <button class="secondary-action" type="button" [disabled]="!applicationUrl(project)" (click)="openApplication(project)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg>Ouvrir l'application</button>
               <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'restart')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.8-2L20 12M4 12l2.6 5a7 7 0 0 0 11.8-2"/></svg>Redémarrer</button>
               <button class="secondary-action" type="button" [disabled]="busyDirectory() === project.directory" (click)="runAction(project, 'pull')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 17v3h14v-3"/></svg>Récupérer les images</button>
               <button class="logs-action" type="button" [disabled]="loadingLogs()" (click)="showLogs(project)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Consulter les logs</button>
