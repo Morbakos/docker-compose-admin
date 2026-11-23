@@ -201,7 +201,7 @@ export class AppComponent {
     finally { this.logRequestActive = false; }
   }
   portUrl(port: string): string | null {
-    const match = port.match(/^(?:[^:]+:)?(\\d+):(\\d+)(?:\\/(tcp|udp))?$/i);
+    const match = port.match(/^(?:[^:]+:)?(\d+):(\d+)(?:\/(tcp|udp))?$/i);
     return match && (!match[3] || match[3].toLowerCase() === "tcp") ? "http://localhost:" + match[1] : null;
   }
 
