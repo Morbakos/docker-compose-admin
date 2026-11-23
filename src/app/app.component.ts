@@ -154,7 +154,7 @@ export class AppComponent {
     const root = this.rootDirectory(), project = this.selectedProject();
     if (!root || !project || this.busyDirectory()) return;
     const services = this.selectedServices();
-    if ((action === "start" || action === "restart") && services.length === 0) {
+    if ((action === "start" || action === "restart" || action === "build") && services.length === 0) {
       this.setNotice("error", "Sélectionnez au moins un service à démarrer.");
       return;
     }
@@ -215,11 +215,11 @@ export class AppComponent {
   clearNotice(): void { this.notice.set(null); }
   private errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
   private actionProgress(action: ComposeAction, name: string): string {
-    const labels: Record<ComposeAction, string> = { start:"Démarrage", stop:"Arrêt", restart:"Redémarrage", pull:"Récupération des images" };
-    return action === "pull" ? labels[action] + " pour " + name + "…" : labels[action] + " de " + name + "…";
+    const labels: Record<ComposeAction, string> = { start:"Démarrage", stop:"Arrêt", restart:"Redémarrage", pull:"Récupération des images", build:"Construction des images" };
+    return action === "pull" || action === "build" ? labels[action] + " pour " + name + "…" : labels[action] + " de " + name + "…";
   }
   private actionSuccess(action: ComposeAction, name: string): string {
-    const labels: Record<ComposeAction, string> = { start:"démarré", stop:"arrêté", restart:"redémarré", pull:"images récupérées" };
+    const labels: Record<ComposeAction, string> = { start:"démarré", stop:"arrêté", restart:"redémarré", pull:"images récupérées", build:"images construites" };
     return name + " : " + labels[action] + ".";
   }
 }
