@@ -23,14 +23,33 @@ fn stop_watch_process(directory: &str) {
     }
 }
 
-fn start_watch_process(project: &ComposeProject, selected_services: &[String]) -> Result<String, String> {
-    let available: BTreeSet<&str> = project.services.iter().map(String::as_str).collect();
+fn validate_selected_services(
+    project: &ComposeProject,
+    selected_services: &[String],
+    required: bool,
+) -> Result<Vec<String>, String> {
     if selected_services.is_empty() {
-        return Err("Sélectionnez au moins un service à démarrer.".to_string());
+        return if required {
+            Err("Sélectionnez au moins un service à démarrer.".to_string())
+        } else {
+            Ok(Vec::new())
+        };
     }
+
+    let available: BTreeSet<&str> = project.services.iter().map(String::as_str).collect();
     if selected_services.iter().any(|service| !available.contains(service.as_str())) {
         return Err("La sélection contient un service inconnu pour ce projet.".to_string());
     }
+
+    let mut unique = BTreeSet::new();
+    Ok(selected_services
+        .iter()
+        .filter(|service| unique.insert(service.as_str()))
+        .cloned()
+        .collect())
+}
+
+fn start_watch_process(project: &ComposeProject, selected_services: &[String]) -> Result<String, String> {
     stop_watch_process(&project.directory);
     let mut args = compose_base_args(project);
     args.extend(["up".to_string(), "--watch".to_string()]);
@@ -441,19 +460,24 @@ pub async fn run_compose_action(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&root_directory, &project_directory)?;
+        let selected_services = validate_selected_services(
+            &project,
+            &services,
+            action == "start" || action == "restart",
+        )?;
         match action.as_str() {
-            "start" | "restart" => start_watch_process(&project, &services),
+            "start" | "restart" => start_watch_process(&project, &selected_services),
             "stop" => {
                 stop_watch_process(&project.directory);
                 let mut args = compose_base_args(&project);
                 args.push("stop".to_string());
-                args.extend(services.iter().cloned());
+                args.extend(selected_services);
                 run_docker(&args).map(output_text)
             }
             "pull" => {
                 let mut args = compose_base_args(&project);
                 args.push("pull".to_string());
-                args.extend(services.iter().cloned());
+                args.extend(selected_services);
                 run_docker(&args).map(output_text)
             }
             _ => Err("Action non autorisée.".to_string()),
