@@ -13,6 +13,7 @@ export interface DockerEngineStatus {
   connected: boolean;
   version: string | null;
   error: string | null;
+  checking?: boolean;
 }
 
 export type ComposeAction = "start" | "stop" | "restart" | "pull";
