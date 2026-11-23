@@ -2,7 +2,7 @@ name: Cross-platform build
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/compose-dashboard-mvp]
   pull_request:
     branches: [main]
   workflow_dispatch:
