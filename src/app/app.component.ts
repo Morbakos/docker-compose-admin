@@ -1,5 +1,5 @@
-import { Component, computed, inject, signal } from "@angular/core";
-import { ComposeAction, ComposeProject, DockerService } from "./docker.service";
+import { Component, computed, DestroyRef, inject, signal } from "@angular/core";
+import { ComposeAction, ComposeProject, DockerEngineStatus, DockerService } from "./docker.service";
 
 type NoticeKind = "success" | "error" | "info";
 
@@ -12,6 +12,7 @@ type NoticeKind = "success" | "error" | "info";
 export class AppComponent {
   private readonly docker = inject(DockerService);
 
+  readonly dockerEngine = signal<DockerEngineStatus>({ connected: false, version: null, error: null, checking: true });
   readonly rootDirectory = signal<string | null>(null);
   readonly projects = signal<ComposeProject[]>([]);
   readonly selectedDirectory = signal<string | null>(null);
@@ -38,6 +39,14 @@ export class AppComponent {
   });
 
   constructor() {
+    const refreshTimer = window.setInterval(() => {
+      void this.refreshDockerStatus();
+      if (this.dockerEngine().connected && this.rootDirectory() && !this.scanning()) {
+        void this.refreshProjects();
+      }
+    }, 15000);
+    inject(DestroyRef).onDestroy(() => window.clearInterval(refreshTimer));
+    void this.refreshDockerStatus();
     const savedDirectory = localStorage.getItem("compose-admin.root-directory");
     if (savedDirectory) {
       this.rootDirectory.set(savedDirectory);
@@ -62,7 +71,18 @@ export class AppComponent {
     }
   }
 
+  async refreshDockerStatus(): Promise<void> {
+    this.dockerEngine.update((current) => ({ ...current, checking: true }));
+    try {
+      const status = await this.docker.getEngineStatus();
+      this.dockerEngine.set({ ...status, checking: false });
+    } catch (error) {
+      this.dockerEngine.set({ connected: false, version: null, error: this.errorMessage(error), checking: false });
+    }
+  }
+
   async refreshProjects(): Promise<void> {
+    if (this.scanning()) return;
     const root = this.rootDirectory();
     if (!root) return;
 
