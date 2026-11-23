@@ -1,1 +1,6 @@
 /* Application shell styles are maintained in src/styles.css. */
+
+.connection-indicator.is-connected { background:#37c98b; box-shadow:0 0 0 3px #37c98b20; }
+.connection-indicator.is-disconnected { background:#db6267; box-shadow:0 0 0 3px #db626720; }
+.connection-indicator.is-checking { background:#e5a443; animation:pulse-connection 1.2s ease-in-out infinite; }
+@keyframes pulse-connection { 50% { opacity:.4; } }
