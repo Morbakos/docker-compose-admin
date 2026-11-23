@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::process::Command;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DockerEngineStatus {
     pub connected: bool,
@@ -60,6 +60,7 @@ fn check_engine() -> DockerEngineStatus {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_docker_engine_status() -> DockerEngineStatus {
     tauri::async_runtime::spawn_blocking(check_engine)
         .await
