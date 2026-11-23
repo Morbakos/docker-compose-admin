@@ -20,6 +20,7 @@ import { LogsPanelComponent } from "./logs-panel.component";
         <button class="primary" type="button" [disabled]="busy || selectedServices.length === 0" (click)="projectAction.emit('start')">▶ Démarrer l’environnement</button>
       }
       <button class="secondary" type="button" [disabled]="busy || selectedServices.length === 0" (click)="projectAction.emit('restart')">↻ Redémarrer</button>
+      <button class="secondary" type="button" [disabled]="busy || selectedServices.length === 0" (click)="projectAction.emit('build')">⚒ Construire les images</button>
       <button class="secondary" type="button" [disabled]="busy" (click)="projectAction.emit('pull')">↓ Récupérer les images</button>
       <span class="action-spacer"></span>
       <button class="open-app" type="button" [disabled]="!applicationUrl" (click)="openApplication.emit()">Ouvrir l’application ↗</button>
