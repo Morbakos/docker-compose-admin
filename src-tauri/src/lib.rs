@@ -1,20 +1,37 @@
 mod compose;
 mod docker;
 
+use specta_typescript::Typescript;
+use tauri_specta::{collect_commands, Builder};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let specta_builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+        compose::pick_compose_directory,
+        compose::scan_compose_directory,
+        compose::run_compose_action,
+        compose::get_compose_logs,
+        docker::get_docker_engine_status,
+        compose::get_compose_containers,
+        compose::run_compose_service_action
+    ]);
+
+    #[cfg(debug_assertions)]
+    specta_builder
+        .export(
+            Typescript::default(),
+            "../src/app/bindings.ts",
+        )
+        .expect("failed to export Tauri bindings");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![
-            compose::pick_compose_directory,
-            compose::scan_compose_directory,
-            compose::run_compose_action,
-            compose::get_compose_logs,
-            docker::get_docker_engine_status,
-            compose::get_compose_containers,
-            compose::run_compose_service_action
-        ])
+        .invoke_handler(specta_builder.invoke_handler())
+        .setup(move |app| {
+            specta_builder.mount_events(app);
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
