@@ -463,7 +463,7 @@ pub async fn run_compose_action(
         let selected_services = validate_selected_services(
             &project,
             &services,
-            action == "start" || action == "restart",
+            action == "start" || action == "restart" || action == "build",
         )?;
         match action.as_str() {
             "start" | "restart" => start_watch_process(&project, &selected_services),
@@ -477,6 +477,12 @@ pub async fn run_compose_action(
             "pull" => {
                 let mut args = compose_base_args(&project);
                 args.push("pull".to_string());
+                args.extend(selected_services);
+                run_docker(&args).map(output_text)
+            }
+            "build" => {
+                let mut args = compose_base_args(&project);
+                args.push("build".to_string());
                 args.extend(selected_services);
                 run_docker(&args).map(output_text)
             }
