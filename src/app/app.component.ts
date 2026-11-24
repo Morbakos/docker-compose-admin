@@ -65,8 +65,6 @@ export class AppComponent {
 		this.updateCheckTimer = window.setInterval(() => void this.checkForUpdates(), 6 * 60 * 60 * 1000);
 		void this.refreshDockerStatus();
 		void this.refreshProjects();
-
-		this.docker.listenComposeOutput((output) => console.log(output));
 	}
 
 	async loadBuildInfo(): Promise<void> {

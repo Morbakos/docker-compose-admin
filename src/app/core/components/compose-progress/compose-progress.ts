@@ -1,5 +1,17 @@
 import { DatePipe } from "@angular/common";
-import { Component, effect, HostListener, inject, input, OnDestroy, signal } from "@angular/core";
+import {
+	afterRenderEffect,
+	Component,
+	computed,
+	effect,
+	ElementRef,
+	HostListener,
+	inject,
+	input,
+	OnDestroy,
+	signal,
+	viewChild,
+} from "@angular/core";
 import { ComposeOutput, DockerService } from "@services";
 
 @Component({
@@ -16,6 +28,9 @@ export class ComposeProgress implements OnDestroy {
 	private readonly docker = inject(DockerService);
 	private unlisten?: () => void;
 
+	private readonly element = viewChild<ElementRef<HTMLDivElement>>("console");
+	private readonly atBottom = signal(true);
+
 	constructor() {
 		effect(() => {
 			const directory = this.projectDirectory();
@@ -28,15 +43,36 @@ export class ComposeProgress implements OnDestroy {
 				})
 				.then((unlisten) => (this.unlisten = unlisten));
 		});
+
+		afterRenderEffect(() => {
+			this.lines();
+
+			const element = this.element()?.nativeElement;
+			if (element && this.atBottom()) {
+				element.scrollTop = element.scrollHeight;
+			}
+		});
 	}
 
 	toggleFullscreen(): void {
 		this.fullscreen.update((value) => !value);
 	}
 
+	protected clearLogs() {
+		this.lines.set([]);
+	}
+
 	@HostListener("document:keydown.escape")
 	onEscape(): void {
 		this.fullscreen.set(false);
+	}
+
+	protected onScroll() {
+		const element = this.element()?.nativeElement;
+		if (!element) {
+			return;
+		}
+		this.atBottom.set(element.scrollHeight - element.scrollTop - element.clientHeight < 5);
 	}
 
 	ngOnDestroy(): void {

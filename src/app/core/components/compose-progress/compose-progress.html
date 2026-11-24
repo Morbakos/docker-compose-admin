@@ -1,12 +1,25 @@
-<section class="compose-progress" [class.is-fullscreen]="fullscreen()">
+<section
+	class="compose-progress"
+	[class.is-fullscreen]="fullscreen()">
 	<header>
 		<div><strong>Activité au démarrage</strong><span>{{lines().length}} lignes</span></div>
-		<button type="button" class="fullscreen-button" (click)="toggleFullscreen()" [attr.aria-label]="fullscreen() ? 'Quitter le plein écran' : 'Afficher en plein écran'">
+		<button
+			type="button"
+			class="clean-logs-button"
+			(click)="clearLogs()"
+			[attr.aria-label]="'Vider les logs'">
+			Vider les logs
+		</button>
+		<button
+			type="button"
+			class="fullscreen-button"
+			(click)="toggleFullscreen()"
+			[attr.aria-label]="fullscreen() ? 'Quitter le plein écran' : 'Afficher en plein écran'">
 			{{ fullscreen() ? '↙ Réduire' : '⛶ Plein écran' }}
 		</button>
 	</header>
 
-	<div class="console">
+	<div class="console" #console (scroll)="onScroll()">
 		@for (entry of lines(); track $index) {
 		<div
 			class="log-line"
