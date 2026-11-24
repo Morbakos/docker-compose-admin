@@ -159,6 +159,7 @@ pub struct ComposeProject {
     pub compose_files: Vec<String>,
     pub available_compose_files: Vec<String>,
     pub services: Vec<String>,
+    pub watch_services: Vec<String>,
     pub status: String,
     pub root_directory: String,
     pub selected_services: Vec<String>,
@@ -381,6 +382,28 @@ pub(crate) fn compose_services(project: &ComposeProject) -> Result<Vec<String>, 
     Ok(services)
 }
 
+pub(crate) fn compose_watch_services(project: &ComposeProject) -> Result<Vec<String>, String> {
+    let mut args = compose_base_args(project);
+    args.extend(["config".to_string(), "--format".to_string(), "json".to_string()]);
+    let output = run_docker(&args)?;
+    let config: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("Configuration Compose JSON invalide : {error}"))?;
+    let mut watched = Vec::new();
+    if let Some(services) = config.get("services").and_then(Value::as_object) {
+        for (name, service) in services {
+            let has_watch = service.get("develop")
+                .and_then(|develop| develop.get("watch"))
+                .and_then(Value::as_array)
+                .is_some_and(|rules| !rules.is_empty());
+            if has_watch {
+                watched.push(name.clone());
+            }
+        }
+    }
+    watched.sort();
+    Ok(watched)
+}
+
 fn project_status(project: &ComposeProject) -> String {
     let mut args = compose_base_args(project);
     args.extend([
@@ -503,6 +526,7 @@ pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, Strin
         };
 
         project.services = compose_services(&project).unwrap_or_default();
+        project.watch_services = compose_watch_services(&project).unwrap_or_default();
         project.selected_services = project.services.clone();
         project.status = project_status(&project);
         projects.push(project);
