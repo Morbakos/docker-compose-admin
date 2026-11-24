@@ -1,10 +1,13 @@
 :host {
 	display: block;
 	min-width: 0;
+	width: 100%;
 }
 
 .compose-progress {
+	position: relative;
 	overflow: hidden;
+	width: 100%;
 	border: 1px solid #dfe6f0;
 	border-radius: 14px;
 	background: #fff;
@@ -44,30 +47,44 @@
 	white-space: nowrap;
 }
 
+.fullscreen-button {
+	flex: 0 0 auto;
+	min-height: 34px;
+	padding: 0 11px;
+	border: 1px solid #dfe6f0;
+	border-radius: 8px;
+	color: #526782;
+	background: #f8faff;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 650;
+	cursor: pointer;
+}
+
 .console {
 	display: flex;
-	height: 330px;
+	height: 360px;
 	flex-direction: column;
 	gap: 3px;
 	overflow: auto;
-	padding: 13px 14px;
-	color: #d5deec;
-	background: #111b2b;
-	font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-	scrollbar-color: #43516a #111b2b;
+	padding: 15px 18px;
+	color: #34445b;
+	background: #fbfcfe;
+	font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	scrollbar-color: #c5cfdd #f1f4f8;
 	scrollbar-width: thin;
 }
 
 .log-line {
 	display: grid;
-	grid-template-columns: 58px minmax(0, 1fr);
-	gap: 10px;
+	grid-template-columns: 64px minmax(0, 1fr);
+	gap: 12px;
 	align-items: start;
 	min-width: 0;
 }
 
 .timestamp {
-	color: #7f91ab;
+	color: #8997aa;
 	user-select: none;
 }
 
@@ -75,17 +92,29 @@
 	min-width: 0;
 	overflow-wrap: anywhere;
 	white-space: pre-wrap;
-	color: #d5deec;
+	color: #34445b;
 }
 
 .log-line.error .message {
-	color: #ffaaa6;
+	color: #c33d3d;
 }
 
-@media (max-width: 850px) {
-	.console {
-		height: 280px;
-	}
+.compose-progress.is-fullscreen {
+	position: fixed;
+	z-index: 1000;
+	inset: 16px;
+	display: flex;
+	width: auto;
+	flex-direction: column;
+	border-radius: 16px;
+	box-shadow: 0 18px 70px #17263d40;
+}
+
+.is-fullscreen .console {
+	flex: 1;
+	height: auto;
+	min-height: 0;
+	font-size: 13px;
 }
 
 @media (max-width: 600px) {
@@ -93,12 +122,15 @@
 		padding: 12px 14px;
 	}
 	.console {
-		height: 250px;
+		height: 300px;
 		padding: 11px;
-		font-size: 10px;
+		font-size: 11px;
 	}
 	.log-line {
-		grid-template-columns: 48px minmax(0, 1fr);
-		gap: 7px;
+		grid-template-columns: 52px minmax(0, 1fr);
+		gap: 8px;
+	}
+	.compose-progress.is-fullscreen {
+		inset: 6px;
 	}
 }
