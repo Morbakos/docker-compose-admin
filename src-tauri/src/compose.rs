@@ -651,25 +651,72 @@ pub async fn run_compose_action(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn start_compose_logs(app: tauri::AppHandle, root_directory: String, project_directory: String) -> Result<(), String> {
+pub async fn start_compose_logs(
+    app: tauri::AppHandle,
+    root_directory: String,
+    project_directory: String,
+) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&app, &root_directory, &project_directory)?;
         stop_log_process(&project.directory);
+
         let mut args = compose_base_args(&project);
-        args.extend(["logs".to_string(), "--follow".to_string(), "--tail".to_string(), "250".to_string(), "--no-color".to_string(), "--timestamps".to_string()]);
-        let mut child = Command::new("docker").args(&args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|error| {
-            if error.kind() == std::io::ErrorKind::NotFound {
-                "Docker CLI introuvable. Vérifiez que Docker est installé et accessible depuis le PATH.".to_string()
-            } else { format!("Impossible de démarrer le flux des logs : {error}") }
-        })?;
+        args.extend([
+            "logs".to_string(),
+            "--follow".to_string(),
+            "--tail".to_string(),
+            "250".to_string(),
+            "--no-color".to_string(),
+            "--timestamps".to_string(),
+        ]);
+
+        let mut child = Command::new("docker")
+            .args(&args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    "Docker CLI introuvable. Vérifiez que Docker est installé et accessible depuis le PATH."
+                        .to_string()
+                } else {
+                    format!("Impossible de démarrer le flux des logs : {error}")
+                }
+            })?;
+
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
         let directory = project.directory.clone();
-        if let Some(stdout) = stdout { forward_compose_output(stdout, app.clone(), directory.clone(), "container", "stdout"); }
-        if let Some(stderr) = stderr { forward_compose_output(stderr, app.clone(), directory.clone(), "container", "stderr"); }
-        log_processes().lock().map_err(|_| "Gestionnaire des flux de logs indisponible.".to_string())?.insert(directory, child);
+
+        if let Some(stdout) = stdout {
+            forward_compose_output(
+                stdout,
+                app.clone(),
+                directory.clone(),
+                "container",
+                "stdout",
+            );
+        }
+        if let Some(stderr) = stderr {
+            forward_compose_output(
+                stderr,
+                app.clone(),
+                directory.clone(),
+                "container",
+                "stderr",
+            );
+        }
+
+        log_processes()
+            .lock()
+            .map_err(|_| "Gestionnaire des flux de logs indisponible.".to_string())?
+            .insert(directory, child);
+
         Ok(())
-    }).await.map_err(|error| format!("Démarrage du flux des logs impossible : {error}"))?
+    })
+    .await
+    .map_err(|error| format!("Démarrage du flux des logs impossible : {error}"))?
 }
 
 #[tauri::command]
@@ -679,9 +726,12 @@ pub async fn stop_compose_logs(project_directory: String) -> Result<(), String> 
         if project_directory.trim().is_empty() {
             return Err("Répertoire de projet invalide.".to_string());
         }
+
         stop_log_process(&project_directory);
         Ok(())
-    }).await.map_err(|error| format!("Arrêt du flux des logs impossible : {error}"))?
+    })
+    .await
+    .map_err(|error| format!("Arrêt du flux des logs impossible : {error}"))?
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
