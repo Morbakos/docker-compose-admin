@@ -28,7 +28,7 @@
 		<h2>Configuration Compose</h2>
 		<p class="compose-help">Sélectionnez les fichiers à fusionner. Leur ordre définit les priorités de configuration, sans modifier les fichiers eux-mêmes.</p>
 		<div class="compose-file-list">
-			@for (file of project().availableComposeFiles; track file) {
+			@for (file of orderedComposeFiles(); track file) {
 				<div class="compose-file-choice" [class.active]="project().composeFiles.includes(file)">
 					<label>
 						<input type="checkbox" [checked]="project().composeFiles.includes(file)"
