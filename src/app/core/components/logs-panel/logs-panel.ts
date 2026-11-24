@@ -1,3 +1,4 @@
+import { DatePipe } from "@angular/common";
 import {
 	afterRenderEffect,
 	Component,
@@ -11,6 +12,7 @@ import {
 import { ComposeOutput, DockerService } from "@services";
 
 @Component({
+	imports: [DatePipe],
 	selector: "app-logs-panel",
 	styleUrl: "./logs-panel.scss",
 	templateUrl: "./logs-panel.html",
