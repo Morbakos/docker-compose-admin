@@ -1,3 +1,4 @@
+mod app_info;
 mod compose;
 mod docker;
 
@@ -12,7 +13,10 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         compose::get_compose_logs,
         docker::get_docker_engine_status,
         compose::get_compose_containers,
-        compose::run_compose_service_action
+        compose::run_compose_service_action,
+        app_info::get_build_info,
+        app_info::check_for_update,
+        app_info::install_update
     ])
 }
 
@@ -28,6 +32,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(specta_builder.invoke_handler())
         .setup(move |app| {
             specta_builder.mount_events(app);
