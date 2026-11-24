@@ -1,0 +1,104 @@
+:host {
+	display: block;
+	min-width: 0;
+}
+
+.compose-progress {
+	overflow: hidden;
+	border: 1px solid #dfe6f0;
+	border-radius: 14px;
+	background: #fff;
+	box-shadow: 0 5px 18px #233c5b08;
+}
+
+.compose-progress header {
+	display: flex;
+	min-height: 67px;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 18px;
+	border-bottom: 1px solid #e9edf4;
+}
+
+.compose-progress header > div {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 10px;
+}
+
+.compose-progress header strong {
+	color: #27364d;
+	font-size: 15px;
+	font-weight: 750;
+}
+
+.compose-progress header span {
+	padding: 4px 8px;
+	border-radius: 20px;
+	color: #65758e;
+	background: #f0f3f8;
+	font-size: 11px;
+	font-weight: 650;
+	white-space: nowrap;
+}
+
+.console {
+	display: flex;
+	height: 330px;
+	flex-direction: column;
+	gap: 3px;
+	overflow: auto;
+	padding: 13px 14px;
+	color: #d5deec;
+	background: #111b2b;
+	font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	scrollbar-color: #43516a #111b2b;
+	scrollbar-width: thin;
+}
+
+.log-line {
+	display: grid;
+	grid-template-columns: 58px minmax(0, 1fr);
+	gap: 10px;
+	align-items: start;
+	min-width: 0;
+}
+
+.timestamp {
+	color: #7f91ab;
+	user-select: none;
+}
+
+.message {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+	color: #d5deec;
+}
+
+.log-line.error .message {
+	color: #ffaaa6;
+}
+
+@media (max-width: 850px) {
+	.console {
+		height: 280px;
+	}
+}
+
+@media (max-width: 600px) {
+	.compose-progress header {
+		padding: 12px 14px;
+	}
+	.console {
+		height: 250px;
+		padding: 11px;
+		font-size: 10px;
+	}
+	.log-line {
+		grid-template-columns: 48px minmax(0, 1fr);
+		gap: 7px;
+	}
+}
