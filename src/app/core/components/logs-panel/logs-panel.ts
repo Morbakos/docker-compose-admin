@@ -50,7 +50,7 @@ export class LogsPanel {
 				try {
 					await this.docker.startComposeLogs(rootDirectory, projectDirectory);
 					started = true;
-					if (cancelled) await this.docker.stopComposeLogs(rootDirectory, projectDirectory);
+					if (cancelled) await this.docker.stopComposeLogs(projectDirectory);
 				} catch (error) {
 					if (!cancelled) this.error.set(error instanceof Error ? error.message : String(error));
 				}
