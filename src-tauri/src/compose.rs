@@ -522,6 +522,7 @@ pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, Strin
             status: "unknown".to_string(),
             root_directory: root.to_string_lossy().to_string(),
             selected_services: Vec::new(),
+            watch_services: Vec::new(),
             accessible: true,
         };
 
