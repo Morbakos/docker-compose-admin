@@ -106,19 +106,17 @@
 				@if (project.accessible) {
 				<app-project-workspace
 					[project]="project"
-					[containers]="containers()"
-					[containersLoading]="containersLoading()"
 					[selectedServices]="selectedServices()"
 					[watchServices]="project.watchServices"
 					[busy]="busyDirectory() === project.directory"
-					[applicationUrl]="applicationUrl()"
 					(projectAction)="runAction($event)"
 					(serviceToggle)="toggleService($event)"
 					(composeFilesChange)="saveComposeFiles(project, $event)"
 					(selectAll)="selectAllServices()"
 					(clearSelection)="clearSelectedServices()"
 					(serviceAction)="runServiceAction($event.container, $event.action)"
-					(openApplication)="openApplication()"
+					(containerLoadError)="setNotice('error', $event)"
+					(openApplication)="openApplication($event)"
 				/>
 				} @else {
 					<div class="welcome-state">
