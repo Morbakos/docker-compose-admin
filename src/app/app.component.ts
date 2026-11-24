@@ -43,6 +43,7 @@ export class AppComponent {
 	readonly containersLoading = signal(false);
 	readonly serviceSelections = signal<Record<string, string[]>>({});
 	private logRefreshTimer: number | null = null;
+	private updateCheckTimer: number | null = null;
 	private logRequestActive = false;
 	readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
 
@@ -70,9 +71,11 @@ export class AppComponent {
 		}, 15000);
 		inject(DestroyRef).onDestroy(() => {
 			window.clearInterval(refreshTimer);
+			if (this.updateCheckTimer !== null) window.clearInterval(this.updateCheckTimer);
 			this.stopLogPolling();
 		});
 		void this.loadBuildInfo();
+		this.updateCheckTimer = window.setInterval(() => void this.checkForUpdates(), 6 * 60 * 60 * 1000);
 		void this.refreshDockerStatus();
 		const savedDirectory = localStorage.getItem("compose-admin.root-directory");
 		if (savedDirectory) {
