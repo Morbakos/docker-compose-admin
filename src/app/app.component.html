@@ -112,8 +112,6 @@
 					[watchServices]="project.watchServices"
 					[busy]="busyDirectory() === project.directory"
 					[applicationUrl]="applicationUrl()"
-					[logs]="logs()"
-					[loadingLogs]="loadingLogs()"
 					(projectAction)="runAction($event)"
 					(serviceToggle)="toggleService($event)"
 					(composeFilesChange)="saveComposeFiles(project, $event)"
