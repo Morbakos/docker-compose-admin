@@ -43,6 +43,8 @@ export class ComposeProgress implements OnDestroy {
 			}).then((unlisten) => {
 				if (cancelled) unlisten();
 				else this.unlisten = unlisten;
+			}).catch((error: unknown) => {
+				console.error("Unable to subscribe to Compose output", error);
 			});
 
 			onCleanup(() => {
