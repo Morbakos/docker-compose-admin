@@ -113,7 +113,6 @@
 					[busy]="busyDirectory() === project.directory"
 					[applicationUrl]="applicationUrl()"
 					[logs]="logs()"
-					[showingLogs]="logsDirectory() === project.directory"
 					[loadingLogs]="loadingLogs()"
 					(projectAction)="runAction($event)"
 					(serviceToggle)="toggleService($event)"
@@ -122,8 +121,7 @@
 					(clearSelection)="clearSelectedServices()"
 					(serviceAction)="runServiceAction($event.container, $event.action)"
 					(openApplication)="openApplication()"
-					(showLogs)="showLogs()"
-					(closeLogs)="dismissLogs()" />
+				/>
 				} @else {
 					<div class="welcome-state">
 						<div class="welcome-icon">⚠</div>
