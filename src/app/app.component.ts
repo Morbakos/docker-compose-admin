@@ -115,7 +115,7 @@ export class AppComponent {
 			this.projects.set(projects);
 			const added = projects.find((project) => !previousDirectories.has(project.directory) && project.accessible) ?? projects.find((project) => project.accessible);
 			if (added) this.selectProject(added.directory);
-			this.setNotice("success", "Projet(s) ajouté(s) à Compose Admin.");
+			this.setNotice("success", "Projet ajouté à Compose Admin.");
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		} finally {
