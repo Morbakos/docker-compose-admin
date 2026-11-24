@@ -1,4 +1,4 @@
-use crate::compose::{compose_services, scan_directory, ComposeProject};
+use crate::compose::{compose_services, compose_watch_services, scan_directory, ComposeProject};
 use rusqlite::{params, Connection};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 use tauri::{AppHandle, Manager};
@@ -96,6 +96,7 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
         if selection_is_valid {
             project.compose_files = cached_compose_files;
             project.services = compose_services(&project).unwrap_or_default();
+            project.watch_services = compose_watch_services(&project).unwrap_or_default();
         } else {
             // Never silently replace a user's saved Compose selection with
             // another configuration when one of its files has disappeared.
@@ -189,6 +190,7 @@ pub(crate) fn resolve_registered_project(
     let mut project = current;
     project.compose_files = cached.compose_files;
     project.services = compose_services(&project)?;
+    project.watch_services = compose_watch_services(&project)?;
     project.selected_services = cached.selected_services.into_iter()
         .filter(|service| project.services.contains(service))
         .collect();
@@ -221,6 +223,7 @@ pub async fn save_project_compose_files(
         }
         project.compose_files = files;
         project.services = compose_services(&project)?;
+        project.watch_services = compose_watch_services(&project)?;
         project.selected_services.retain(|service| project.services.contains(service));
         store_project(&connection, &project)?;
         Ok(project)
@@ -266,6 +269,7 @@ mod tests {
             relative_directory: ".".to_string(),
             compose_files: vec![format!("{directory}/compose.yaml")],
             available_compose_files: vec![format!("{directory}/compose.yaml")],
+            watch_services: Vec::new(),
             services: vec!["api".to_string(), "worker".to_string()],
             status: "stopped".to_string(),
             root_directory: directory.to_string(),
