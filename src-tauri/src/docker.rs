@@ -9,6 +9,28 @@ pub struct DockerEngineStatus {
     pub error: Option<String>,
 }
 
+fn engine_unavailable_message(stderr: &str) -> String {
+    let normalized = stderr.to_ascii_lowercase();
+    let daemon_not_running = [
+        "cannot connect to the docker daemon",
+        "is the docker daemon running",
+        "failed to connect to the docker api",
+        "error during connect",
+        "docker_engine",
+        "dockerdesktoplinuxengine",
+    ]
+    .iter()
+    .any(|pattern| normalized.contains(pattern));
+
+    if daemon_not_running {
+        "Docker n'est pas démarré. Lancez Docker Desktop, puis réessayez.".to_string()
+    } else if stderr.trim().is_empty() {
+        "Docker Engine ne répond pas.".to_string()
+    } else {
+        stderr.trim().to_string()
+    }
+}
+
 fn check_engine() -> DockerEngineStatus {
     let output = Command::new("docker")
         .args(["info", "--format", "{{.ServerVersion}}"])
@@ -33,11 +55,7 @@ fn check_engine() -> DockerEngineStatus {
         }
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            let message = if stderr.is_empty() {
-                "Docker Engine ne répond pas.".to_string()
-            } else {
-                stderr
-            };
+            let message = engine_unavailable_message(&stderr);
             DockerEngineStatus {
                 connected: false,
                 version: None,
@@ -73,7 +91,24 @@ pub async fn get_docker_engine_status() -> DockerEngineStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::DockerEngineStatus;
+    use super::{engine_unavailable_message, DockerEngineStatus};
+
+    #[test]
+    fn daemon_connection_errors_ask_user_to_start_docker_desktop() {
+        let message = engine_unavailable_message(
+            "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+        );
+        assert_eq!(
+            message,
+            "Docker n'est pas démarré. Lancez Docker Desktop, puis réessayez."
+        );
+    }
+
+    #[test]
+    fn unrelated_docker_errors_keep_the_original_details() {
+        let message = engine_unavailable_message("permission denied while connecting");
+        assert_eq!(message, "permission denied while connecting");
+    }
 
     #[test]
     fn engine_status_serializes_with_frontend_casing() {
