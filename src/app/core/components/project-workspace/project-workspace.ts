@@ -1,4 +1,4 @@
-import { Component, input, output } from "@angular/core";
+import { Component, computed, input, output } from "@angular/core";
 import { ServiceSelection } from "../service-selection/service-selection";
 import { ContainerList } from "../container-list/container-list";
 import { LogsPanel } from "../logs-panel/logs-panel";
@@ -14,6 +14,12 @@ import { ComposeProgress } from "../compose-progress/compose-progress";
 })
 export class ProjectWorkspace {
 	readonly project = input.required<ComposeProject>();
+	readonly orderedComposeFiles = computed(() => {
+		const project = this.project();
+		const selected = project.composeFiles.filter((file) => project.availableComposeFiles.includes(file));
+		const unselected = project.availableComposeFiles.filter((file) => !project.composeFiles.includes(file));
+		return [...selected, ...unselected];
+	});
 	readonly containers = input<ComposeContainer[]>([]);
 	readonly containersLoading = input(false);
 	readonly selectedServices = input<string[]>([]);
