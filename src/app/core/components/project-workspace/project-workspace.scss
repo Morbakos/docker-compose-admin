@@ -76,8 +76,7 @@ h1 {
 	border-radius: 13px;
 	background: #fff;
 }
-.action-bar button,
-.logs-button {
+.action-bar button {
 	min-height: 39px;
 	padding: 0 14px;
 	border: 1px solid #e0e7f0;
@@ -104,8 +103,7 @@ h1 {
 	color: #247b55;
 	background: #f2fbf6;
 }
-.action-bar button:disabled,
-.logs-button:disabled {
+.action-bar button:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
@@ -114,7 +112,7 @@ h1 {
 }
 .lower-grid {
 	display: grid;
-	grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.15fr) minmax(220px, 0.75fr);
+	grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
 	gap: 18px;
 	align-items: start;
 }
@@ -203,11 +201,6 @@ h1 {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-}
-.logs-button {
-	width: 100%;
-	color: #4e6c9f;
-	background: #f8faff;
 }
 @media (max-width: 1180px) {
 	.lower-grid {
