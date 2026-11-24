@@ -61,7 +61,7 @@ export class LogsPanel {
 			onCleanup(() => {
 				cancelled = true;
 				unlisten?.();
-				if (started) void this.docker.stopComposeLogs(rootDirectory, projectDirectory);
+				if (started) void this.docker.stopComposeLogs(projectDirectory);
 			});
 		});
 
