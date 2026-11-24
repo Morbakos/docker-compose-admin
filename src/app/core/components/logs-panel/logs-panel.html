@@ -2,12 +2,17 @@
 	<div class="heading">
 		<div>
 			<h2>Logs de l’environnement</h2>
-			<p>Actualisation automatique toutes les 3 secondes.</p>
+			<p>Flux en direct · actualisation instantanée</p>
 		</div>
+		<button type="button" class="clear-button" (click)="clearLogs()" [disabled]="lines().length === 0" aria-label="Effacer les logs">
+			<span aria-hidden="true">⌫</span> Effacer
+		</button>
 	</div>
-	@if (loading()) {
-	<p class="muted">Chargement des logs…</p>
-	} @else {
-	<pre>{{ logs() || 'Aucun log disponible pour ce projet.' }}</pre>
+	@if (error(); as message) {
+		<p class="error-message">{{ message }}</p>
 	}
+	<pre #console>@for (entry of lines(); track $index) {<span class="log-line" [class.error]="entry.stream === 'stderr'"><span class="timestamp">{{ entry.timestamp | date:'HH:mm:ss' }}</span> {{ entry.line }}</span>
+}@empty {
+	<span class="muted">En attente des logs…</span>
+}</pre>
 </section>
