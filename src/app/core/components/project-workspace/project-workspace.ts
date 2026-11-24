@@ -17,6 +17,7 @@ export class ProjectWorkspace {
 	readonly containers = input<ComposeContainer[]>([]);
 	readonly containersLoading = input(false);
 	readonly selectedServices = input<string[]>([]);
+	readonly watchServices = input<string[]>([]);
 	readonly busy = input(false);
 	readonly applicationUrl = input<string | null>(null);
 	readonly logs = input<string | null>(null);
@@ -24,6 +25,7 @@ export class ProjectWorkspace {
 	readonly loadingLogs = input(false);
 	readonly projectAction = output<ComposeAction>();
 	readonly serviceToggle = output<string>();
+	readonly composeFilesChange = output<string[]>();
 	readonly selectAll = output<void>();
 	readonly clearSelection = output<void>();
 	readonly serviceAction = output<{
@@ -33,4 +35,19 @@ export class ProjectWorkspace {
 	readonly openApplication = output<void>();
 	readonly showLogs = output<void>();
 	readonly closeLogs = output<void>();
+
+	toggleComposeFile(file: string, checked: boolean): void {
+		const current = this.project().composeFiles;
+		const next = checked ? [...current, file] : current.filter((item) => item !== file);
+		if (next.length > 0) this.composeFilesChange.emit(next);
+	}
+
+	moveComposeFile(file: string, offset: number): void {
+		const next = [...this.project().composeFiles];
+		const index = next.indexOf(file);
+		const target = index + offset;
+		if (index < 0 || target < 0 || target >= next.length) return;
+		[next[index], next[target]] = [next[target], next[index]];
+		this.composeFilesChange.emit(next);
+	}
 }
