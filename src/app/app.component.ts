@@ -239,9 +239,8 @@ export class AppComponent {
 	}
 
 	async runAction(action: ComposeAction): Promise<void> {
-		const root = this.rootDirectory(),
-			project = this.selectedProject();
-		if (!root || !project || this.busyDirectory()) return;
+		const project = this.selectedProject();
+		if (!project?.accessible || this.busyDirectory()) return;
 		const services = this.selectedServices();
 		if ((action === "start" || action === "restart" || action === "build") && services.length === 0) {
 			this.setNotice("error", "Sélectionnez au moins un service à démarrer.");
