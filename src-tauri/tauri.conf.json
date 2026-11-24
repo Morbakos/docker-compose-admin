@@ -34,5 +34,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PUBLIC_KEY_INJECTED_BY_RELEASE_WORKFLOW",
+      "endpoints": [
+        "https://github.com/Morbakos/docker-compose-admin/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
