@@ -674,16 +674,10 @@ pub async fn start_compose_logs(app: tauri::AppHandle, root_directory: String, p
 
 #[tauri::command]
 #[specta::specta]
-pub async fn stop_compose_logs(root_directory: String, project_directory: String) -> Result<(), String> {
+pub async fn stop_compose_logs(project_directory: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let root = PathBuf::from(root_directory)
-            .canonicalize()
-            .map_err(|error| format!("Dossier racine inaccessible : {error}"))?;
-        let selected = PathBuf::from(&project_directory)
-            .canonicalize()
-            .map_err(|error| format!("Projet introuvable : {error}"))?;
-        if !selected.starts_with(&root) || !selected.is_dir() {
-            return Err("Le projet sélectionné est en dehors du dossier autorisé.".to_string());
+        if project_directory.trim().is_empty() {
+            return Err("Répertoire de projet invalide.".to_string());
         }
         stop_log_process(&project_directory);
         Ok(())
