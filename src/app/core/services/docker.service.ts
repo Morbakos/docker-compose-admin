@@ -45,16 +45,16 @@ export class DockerService {
 		return commands.getDockerEngineStatus();
 	}
 	listRegisteredProjects(): Promise<PersistedComposeProject[]> {
-		return invoke("list_registered_projects");
+		return invoke<PersistedComposeProject[]>("list_registered_projects");
 	}
 	addRegisteredProjects(directory: string): Promise<PersistedComposeProject[]> {
-		return invoke("add_registered_projects", { directory });
+		return invoke<PersistedComposeProject[]>("add_registered_projects", { directory });
 	}
 	removeRegisteredProject(directory: string): Promise<void> {
-		return invoke("remove_registered_project", { directory });
+		return invoke<void>("remove_registered_project", { directory });
 	}
 	saveProjectServices(directory: string, services: string[]): Promise<void> {
-		return invoke("save_project_services", { directory, services });
+		return invoke<void>("save_project_services", { directory, services });
 	}
 	chooseDirectory(): Promise<string | null> {
 		return commands.pickComposeDirectory();
