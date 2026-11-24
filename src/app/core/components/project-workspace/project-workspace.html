@@ -26,7 +26,7 @@
 	<app-container-list [containers]="containers()" [loading]="containersLoading()" [busy]="busy()" (action)="serviceAction.emit($event)" />
 	<aside class="project-info">
 		<h2>Configuration Compose</h2>
-		<p class="compose-help">Sélectionnez les fichiers à fusionner. Leur ordre définit les priorités de configuration.</p>
+		<p class="compose-help">Sélectionnez les fichiers à fusionner. Leur ordre définit les priorités de configuration, sans modifier les fichiers eux-mêmes.</p>
 		<div class="compose-file-list">
 			@for (file of project().availableComposeFiles; track file) {
 				<div class="compose-file-choice" [class.active]="project().composeFiles.includes(file)">
@@ -46,10 +46,7 @@
 			}
 		</div>
 		<div class="info-row"><span>Fichiers actifs</span><strong>{{ project().composeFiles.length }}</strong></div>
-		<button type="button" class="logs-button" [disabled]="loadingLogs()" (click)="showLogs.emit()">Consulter les logs</button>
 	</aside>
 </div>
 <app-compose-progress [projectDirectory]="project().directory" />
-@if (showingLogs()) {
-<app-logs-panel [logs]="logs()" [loading]="loadingLogs()" (close)="closeLogs.emit()" />
-}
+<app-logs-panel [logs]="logs()" [loading]="loadingLogs()" />
