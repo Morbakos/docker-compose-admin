@@ -21,17 +21,31 @@
 	<span class="action-spacer"></span>
 	<button class="open-app" type="button" [disabled]="!applicationUrl()" (click)="openApplication.emit()">Ouvrir l’application ↗</button>
 </div>
-<app-service-selection [services]="project().services" [selected]="selectedServices()" (toggled)="serviceToggle.emit($event)" (selectAll)="selectAll.emit()" (clear)="clearSelection.emit()" />
+<app-service-selection [services]="project().services" [selected]="selectedServices()" [watchServices]="watchServices()" (toggled)="serviceToggle.emit($event)" (selectAll)="selectAll.emit()" (clear)="clearSelection.emit()" />
 <div class="lower-grid">
 	<app-container-list [containers]="containers()" [loading]="containersLoading()" [busy]="busy()" (action)="serviceAction.emit($event)" />
 	<aside class="project-info">
-		<h2>Détails du projet</h2>
-		<div class="info-row"><span>Fichiers Compose</span><strong>{{ project().composeFiles.length }}</strong></div>
-		<div class="file-list">
-			@for (file of project().composeFiles; track file) {
-			<div>▤ <span [title]="file">{{ file }}</span></div>
+		<h2>Configuration Compose</h2>
+		<p class="compose-help">Sélectionnez les fichiers à fusionner. Leur ordre définit les priorités de configuration.</p>
+		<div class="compose-file-list">
+			@for (file of project().availableComposeFiles; track file) {
+				<div class="compose-file-choice" [class.active]="project().composeFiles.includes(file)">
+					<label>
+						<input type="checkbox" [checked]="project().composeFiles.includes(file)"
+							[disabled]="project().composeFiles.length === 1 && project().composeFiles.includes(file)"
+							(change)="toggleComposeFile(file, $any($event.target).checked)" />
+						<span [title]="file">{{ file }}</span>
+					</label>
+					@if (project().composeFiles.includes(file)) {
+						<div class="file-order-actions">
+							<button type="button" title="Monter" aria-label="Monter le fichier" [disabled]="project().composeFiles.indexOf(file) === 0" (click)="moveComposeFile(file, -1)">↑</button>
+							<button type="button" title="Descendre" aria-label="Descendre le fichier" [disabled]="project().composeFiles.indexOf(file) === project().composeFiles.length - 1" (click)="moveComposeFile(file, 1)">↓</button>
+						</div>
+					}
+				</div>
 			}
 		</div>
+		<div class="info-row"><span>Fichiers actifs</span><strong>{{ project().composeFiles.length }}</strong></div>
 		<button type="button" class="logs-button" [disabled]="loadingLogs()" (click)="showLogs.emit()">Consulter les logs</button>
 	</aside>
 </div>
