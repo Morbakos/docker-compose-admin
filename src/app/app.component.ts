@@ -35,14 +35,9 @@ export class AppComponent {
 	readonly scanning = signal(false);
 	readonly choosingDirectory = signal(false);
 	readonly busyDirectory = signal<string | null>(null);
-	readonly loadingLogs = signal(false);
-	readonly logs = signal<string | null>(null);
-	readonly logsDirectory = signal<string | null>(null);
 	readonly containers = signal<ComposeContainer[]>([]);
 	readonly containersLoading = signal(false);
-	private logRefreshTimer: number | null = null;
 	private updateCheckTimer: number | null = null;
-	private logRequestActive = false;
 	readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
 
 	readonly selectedProject = computed(
@@ -59,7 +54,6 @@ export class AppComponent {
 		inject(DestroyRef).onDestroy(() => {
 			window.clearInterval(refreshTimer);
 			if (this.updateCheckTimer !== null) window.clearInterval(this.updateCheckTimer);
-			this.stopLogPolling();
 		});
 		void this.loadBuildInfo();
 		this.updateCheckTimer = window.setInterval(() => void this.checkForUpdates(), 6 * 60 * 60 * 1000);
@@ -151,10 +145,8 @@ export class AppComponent {
 			const chosen = projects.find((project) => project.directory === this.selectedDirectory());
 			if (chosen?.accessible) {
 				void this.refreshContainers(chosen);
-				void this.showLogs();
 			} else {
 				this.containers.set([]);
-				this.dismissLogs();
 			}
 			if (!silent) this.clearNotice();
 		} catch (error) {
@@ -201,7 +193,6 @@ export class AppComponent {
 			await this.docker.removeRegisteredProject(project.directory);
 			if (this.selectedDirectory() === project.directory) {
 				this.selectedDirectory.set(null);
-				this.dismissLogs();
 				this.containers.set([]);
 			}
 			await this.refreshProjects(true);
@@ -213,11 +204,9 @@ export class AppComponent {
 
 	selectProject(directory: string): void {
 		this.selectedDirectory.set(directory);
-		this.dismissLogs();
 		const project = this.projects().find((project) => project.directory === directory);
 		if (project) {
 			void this.refreshContainers(project);
-			void this.showLogs();
 		}
 	}
 
@@ -319,52 +308,6 @@ export class AppComponent {
 		}
 	}
 
-	async showLogs(): Promise<void> {
-		const project = this.selectedProject();
-		if (!project?.accessible) return;
-		if (this.logsDirectory() === project.directory && this.logRefreshTimer !== null) return;
-		this.stopLogPolling();
-		this.loadingLogs.set(true);
-		this.logsDirectory.set(project.directory);
-		this.logs.set(null);
-		try {
-			const content = await this.docker.getLogs(project.rootDirectory, project.directory);
-			if (this.selectedDirectory() !== project.directory) return;
-			this.logs.set(content || "Aucun log disponible pour ce projet.");
-			this.startLogPolling(project);
-		} catch (error) {
-			if (this.selectedDirectory() === project.directory) this.logs.set(this.errorMessage(error));
-		} finally {
-			this.loadingLogs.set(false);
-		}
-	}
-	dismissLogs(): void {
-		this.stopLogPolling();
-		this.logs.set(null);
-		this.logsDirectory.set(null);
-	}
-	private startLogPolling(project: PersistedComposeProject): void {
-		this.stopLogPolling();
-		this.logRefreshTimer = window.setInterval(() => void this.pollLogs(project), 3000);
-	}
-	private stopLogPolling(): void {
-		if (this.logRefreshTimer !== null) window.clearInterval(this.logRefreshTimer);
-		this.logRefreshTimer = null;
-		this.logRequestActive = false;
-	}
-	private async pollLogs(project: PersistedComposeProject): Promise<void> {
-		if (!project.accessible || this.logRequestActive || this.logsDirectory() !== project.directory) return;
-		this.logRequestActive = true;
-		try {
-			this.logs.set(
-				(await this.docker.getLogs(project.rootDirectory, project.directory)) || "Aucun log disponible pour ce projet.",
-			);
-		} catch (error) {
-			this.logs.set(this.errorMessage(error));
-		} finally {
-			this.logRequestActive = false;
-		}
-	}
 
 	applicationUrl(): string | null {
 		for (const container of this.containers())
