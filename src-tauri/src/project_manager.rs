@@ -170,3 +170,84 @@ pub async fn save_project_services(app: AppHandle, directory: String, services: 
         Ok(())
     }).await.map_err(|error| format!("Sauvegarde des préférences impossible : {error}"))?
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::store_project;
+    use crate::compose::ComposeProject;
+    use rusqlite::Connection;
+
+    fn test_project(directory: &str) -> ComposeProject {
+        ComposeProject {
+            name: "Example".to_string(),
+            directory: directory.to_string(),
+            relative_directory: ".".to_string(),
+            compose_files: vec![format!("{directory}/compose.yaml")],
+            services: vec!["api".to_string(), "worker".to_string()],
+            status: "stopped".to_string(),
+            root_directory: directory.to_string(),
+            selected_services: vec!["api".to_string()],
+            accessible: true,
+        }
+    }
+
+    fn create_schema(connection: &Connection) {
+        connection.execute_batch(
+            "CREATE TABLE projects (
+                directory TEXT PRIMARY KEY NOT NULL,
+                root_directory TEXT NOT NULL,
+                project_json TEXT NOT NULL,
+                selected_services_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );",
+        ).unwrap();
+    }
+
+    #[test]
+    fn refreshing_project_metadata_preserves_saved_service_selection() {
+        let connection = Connection::open_in_memory().unwrap();
+        create_schema(&connection);
+        let mut project = test_project("/tmp/example");
+        store_project(&connection, &project).unwrap();
+
+        connection.execute(
+            "UPDATE projects SET selected_services_json = '[\"worker\"]' WHERE directory = ?1",
+            ["/tmp/example"],
+        ).unwrap();
+
+        project.name = "Updated name".to_string();
+        store_project(&connection, &project).unwrap();
+
+        let selected: String = connection.query_row(
+            "SELECT selected_services_json FROM projects WHERE directory = ?1",
+            ["/tmp/example"],
+            |row| row.get(0),
+        ).unwrap();
+        let name: String = connection.query_row(
+            "SELECT json_extract(project_json, '$.name') FROM projects WHERE directory = ?1",
+            ["/tmp/example"],
+            |row| row.get(0),
+        ).unwrap();
+
+        assert_eq!(selected, "[\"worker\"]");
+        assert_eq!(name, "Updated name");
+    }
+
+    #[test]
+    fn removing_a_registration_does_not_require_touching_project_files() {
+        let connection = Connection::open_in_memory().unwrap();
+        create_schema(&connection);
+        let directory = std::env::temp_dir().join(format!("compose-admin-persistence-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let compose_file = directory.join("compose.yaml");
+        std::fs::write(&compose_file, "services: {}").unwrap();
+
+        let project = test_project(directory.to_string_lossy().as_ref());
+        store_project(&connection, &project).unwrap();
+        connection.execute("DELETE FROM projects WHERE directory = ?1", [project.directory]).unwrap();
+
+        assert!(compose_file.exists());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+}
