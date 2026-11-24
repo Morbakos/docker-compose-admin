@@ -285,9 +285,18 @@ fn declared_project_name(files: &[PathBuf]) -> Option<String> {
 fn compose_base_args(project: &ComposeProject) -> Vec<String> {
     let mut args = vec!["compose".to_string()];
 
-    // Pass the project's root .env explicitly. The desktop app's current
-    // working directory is unrelated to the selected Compose project.
-    let env_file = Path::new(&project.directory).join(".env");
+    // Resolve .env from the selected repository root, not from the
+    // desktop app's working directory or a nested Compose file directory.
+    let relative_depth = if project.relative_directory == "." {
+        0
+    } else {
+        Path::new(&project.relative_directory).components().count()
+    };
+    let project_root = Path::new(&project.directory)
+        .ancestors()
+        .nth(relative_depth)
+        .unwrap_or_else(|| Path::new(&project.directory));
+    let env_file = project_root.join(".env");
     if env_file.is_file() {
         args.push("--env-file".to_string());
         args.push(env_file.to_string_lossy().to_string());
