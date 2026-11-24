@@ -89,8 +89,9 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
         };
 
         project.root_directory = root_directory;
+        let available_services = project.services.clone();
         project.selected_services = selected_services.into_iter()
-            .filter(|service| project.services.contains(service))
+            .filter(|service| available_services.contains(service))
             .collect();
         if project.accessible {
             store_project(&connection, &project)?;
@@ -129,6 +130,7 @@ pub async fn add_registered_projects(app: AppHandle, directory: String) -> Resul
             project.accessible = true;
             store_project(&connection, project)?;
         }
+        drop(connection);
         list_projects(&app)
     }).await.map_err(|error| format!("Ajout du projet impossible : {error}"))?
 }
