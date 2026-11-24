@@ -35,6 +35,9 @@
 				class="checkmark"
 				aria-hidden="true"></span>
 			<span class="service-name">{{ service }}</span>
+			@if (watchServices().includes(service)) {
+				<span class="watch-badge" title="Ce service dispose de règles Docker Compose Watch">Watch</span>
+			}
 		</label>
 		}
 	</div>
