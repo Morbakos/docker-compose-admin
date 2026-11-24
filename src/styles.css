@@ -1215,7 +1215,8 @@ app-root {
 	.new-shell .sidebar-label,
 	.new-shell .sidebar-projects,
 	.new-shell .add-project,
-	.new-shell .sidebar-footer .connection-copy {
+	.new-shell .sidebar-footer .connection-copy,
+	.new-shell .app-build-info {
 		display: none;
 	}
 	.new-main {
