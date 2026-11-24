@@ -229,6 +229,24 @@ export class AppComponent {
 		}
 	}
 
+	async saveComposeFiles(project: PersistedComposeProject, files: string[]): Promise<void> {
+		if (files.length === 0) return;
+		const wasRunning = this.isRunning(project);
+		try {
+			const updated = await this.docker.saveProjectComposeFiles(project.directory, files);
+			this.projects.update((projects) => projects.map((item) =>
+				item.directory === project.directory ? { ...item, ...updated } : item
+			));
+			if (wasRunning) {
+				this.setNotice("info", "Fichiers Compose enregistrés. L’environnement est déjà démarré : redémarrez-le manuellement pour appliquer cette configuration.");
+			} else {
+				this.setNotice("success", "Fichiers Compose enregistrés.");
+			}
+		} catch (error) {
+			this.setNotice("error", this.errorMessage(error));
+		}
+	}
+
 	async toggleService(service: string): Promise<void> {
 		const project = this.selectedProject();
 		if (!project || !project.accessible) return;
