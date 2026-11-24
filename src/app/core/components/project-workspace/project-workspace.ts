@@ -71,6 +71,11 @@ export class ProjectWorkspace {
 		});
 	}
 
+	openApp(): void {
+		const url = this.applicationUrl();
+		if (url) this.openApplication.emit(url);
+	}
+
 	toggleComposeFile(file: string, checked: boolean): void {
 		const current = this.project().composeFiles;
 		const next = checked ? [...current, file] : current.filter((item) => item !== file);
