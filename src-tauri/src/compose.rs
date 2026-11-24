@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    io::{BufRead, BufReader, Stdout},
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     sync::{Mutex, OnceLock},
