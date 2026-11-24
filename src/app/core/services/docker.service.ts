@@ -91,8 +91,8 @@ export class DockerService {
 	startComposeLogs(rootDirectory: string, projectDirectory: string): Promise<void> {
 		return invoke("start_compose_logs", { rootDirectory, projectDirectory });
 	}
-	stopComposeLogs(rootDirectory: string, projectDirectory: string): Promise<void> {
-		return invoke("stop_compose_logs", { rootDirectory, projectDirectory });
+	stopComposeLogs(projectDirectory: string): Promise<void> {
+		return invoke("stop_compose_logs", { projectDirectory });
 	}
 
 	listenComposeOutput(callback: (output: ComposeOutput) => void): Promise<UnlistenFn> {
