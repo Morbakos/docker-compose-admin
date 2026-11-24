@@ -51,8 +51,12 @@ export class ProjectWorkspace {
 		effect((onCleanup) => {
 			const project = this.project();
 			let cancelled = false;
+			onCleanup(() => { cancelled = true; });
 			this.containers.set([]);
-			if (!project.accessible) return;
+			if (!project.accessible) {
+				this.containersLoading.set(false);
+				return;
+			}
 			this.containersLoading.set(true);
 			void this.docker.getContainers(project.rootDirectory, project.directory)
 				.then((containers) => {
