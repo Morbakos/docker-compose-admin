@@ -64,8 +64,7 @@ export class AppComponent {
 			}
 		}
 		const refreshTimer = window.setInterval(() => {
-			void this.loadBuildInfo();
-		void this.refreshDockerStatus();
+			void this.refreshDockerStatus();
 			if (this.dockerEngine().connected && this.rootDirectory() && !this.scanning())
 				void this.refreshProjects(true);
 		}, 15000);
@@ -73,6 +72,7 @@ export class AppComponent {
 			window.clearInterval(refreshTimer);
 			this.stopLogPolling();
 		});
+		void this.loadBuildInfo();
 		void this.refreshDockerStatus();
 		const savedDirectory = localStorage.getItem("compose-admin.root-directory");
 		if (savedDirectory) {
