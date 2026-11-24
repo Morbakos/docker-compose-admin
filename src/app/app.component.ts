@@ -4,7 +4,6 @@ import {
 	UpdateInfo,
 	ComposeAction,
 	ComposeContainer,
-	ComposeProject,
 	DockerEngineStatusWithChecking,
 	DockerService,
 	PersistedComposeProject,
@@ -112,7 +111,7 @@ export class AppComponent {
 			if (!selected) return;
 			const projects = await this.docker.addRegisteredProjects(selected);
 			this.projects.set(projects);
-			const added = projects.find((project) => project.rootDirectory === selected && project.accessible);
+			const added = projects.find((project) => project.rootDirectory === selected && project.accessible) ?? projects.find((project) => project.accessible);
 			if (added) this.selectProject(added.directory);
 			this.setNotice("success", "Projet(s) ajouté(s) à Compose Admin.");
 		} catch (error) {
