@@ -9,6 +9,7 @@ import { Component, input, output } from "@angular/core";
 export class ServiceSelection {
 	readonly services = input<string[]>([]);
 	readonly selected = input<string[]>([]);
+	readonly watchServices = input<string[]>([]);
 	readonly toggled = output<string>();
 	readonly selectAll = output<void>();
 	readonly clear = output<void>();
