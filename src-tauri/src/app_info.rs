@@ -2,6 +2,7 @@ use serde::Serialize;
 use specta::Type;
 use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
+use url::Url;
 
 const UPDATE_ENDPOINT: &str =
     "https://github.com/Morbakos/docker-compose-admin/releases/latest/download/latest.json";
@@ -39,7 +40,7 @@ fn configured_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, 
 
     app.updater_builder()
         .pubkey(public_key)
-        .endpoints(vec![UPDATE_ENDPOINT.to_string()])
+        .endpoints(vec![Url::parse(UPDATE_ENDPOINT).map_err(|error| error.to_string())?])
         .map_err(|error| error.to_string())?
         .build()
         .map_err(|error| error.to_string())
