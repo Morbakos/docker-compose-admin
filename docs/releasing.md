@@ -28,7 +28,7 @@ Configure the repository's GitHub Actions settings:
 - Add a repository **secret** named `TAURI_SIGNING_PRIVATE_KEY` containing the complete contents of `compose-admin.key`.
 - If the private key has a password, add the secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
-The release workflow fails before building if either key is missing. The public key is compiled into the application; the private key is used only to sign release artifacts. Do not rotate this key casually: already-installed versions trust the public key embedded in their own binary.
+The release workflow fails before building if either key is missing. The public key is injected into `tauri.conf.json` and compiled into the application during the release workflow; the private key is used only to sign release artifacts. The placeholder value committed in the configuration is never used for a published build. Do not rotate this key casually: already-installed versions trust the public key embedded in their own binary.
 
 ## Create a release
 
