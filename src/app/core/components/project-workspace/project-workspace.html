@@ -49,4 +49,4 @@
 	</aside>
 </div>
 <app-compose-progress [projectDirectory]="project().directory" />
-<app-logs-panel [logs]="logs()" [loading]="loadingLogs()" />
+<app-logs-panel [rootDirectory]="project().rootDirectory" [projectDirectory]="project().directory" />
