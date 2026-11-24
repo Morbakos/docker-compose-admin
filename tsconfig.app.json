@@ -5,7 +5,12 @@
   "compilerOptions": {
     "composite": true,
     "outDir": "./out-tsc/app",
-    "types": []
+    "types": [],
+	"paths": {
+		"@bindings": ["./src/app/bindings.ts"],
+		"@components/*": ["./src/app/core/components/*"],
+		"@services": ["./src/app/core/services/index"],
+	}
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"]

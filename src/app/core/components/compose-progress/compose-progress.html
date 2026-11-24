@@ -1,0 +1,16 @@
+<section class="compose-progress">
+	<header>
+		<div><strong>Activité au démarrage</strong><span>{{lines().length}} lignes</span></div>
+	</header>
+
+	<div class="console">
+		@for (entry of lines(); track $index) {
+		<div
+			class="log-line"
+			[class.error]="entry.stream === 'stderr'">
+			<span class="timestamp">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+			<span class="message">{{ entry.line }}</span>
+		</div>
+		}
+	</div>
+</section>

@@ -1,17 +1,19 @@
 import { Injectable } from "@angular/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import {
-	commands,
-	type ComposeContainer,
-	type ComposeProject,
-	type DockerEngineStatus,
-} from "./bindings";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { commands, type ComposeContainer, type ComposeProject, type DockerEngineStatus } from "@bindings";
 
 export type { ComposeContainer, ComposeProject, DockerEngineStatus };
 export type DockerEngineStatusWithChecking = DockerEngineStatus & {
 	checking?: boolean;
 };
 export type ComposeAction = "start" | "stop" | "restart" | "pull" | "build";
+export interface ComposeOutput {
+	projectDirectory: string;
+	stream: "stdout" | "stderr";
+	line: string;
+	timestamp: number;
+}
 
 @Injectable({ providedIn: "root" })
 export class DockerService {
@@ -24,10 +26,7 @@ export class DockerService {
 	scanDirectory(rootDirectory: string): Promise<ComposeProject[]> {
 		return commands.scanComposeDirectory(rootDirectory);
 	}
-	getContainers(
-		rootDirectory: string,
-		projectDirectory: string,
-	): Promise<ComposeContainer[]> {
+	getContainers(rootDirectory: string, projectDirectory: string): Promise<ComposeContainer[]> {
 		return commands.getComposeContainers(rootDirectory, projectDirectory);
 	}
 	runServiceAction(
@@ -36,12 +35,7 @@ export class DockerService {
 		service: string,
 		action: "start" | "stop" | "restart",
 	): Promise<string> {
-		return commands.runComposeServiceAction(
-			rootDirectory,
-			projectDirectory,
-			service,
-			action,
-		);
+		return commands.runComposeServiceAction(rootDirectory, projectDirectory, service, action);
 	}
 	runAction(
 		rootDirectory: string,
@@ -49,17 +43,16 @@ export class DockerService {
 		action: ComposeAction,
 		services: string[],
 	): Promise<string> {
-		return commands.runComposeAction(
-			rootDirectory,
-			projectDirectory,
-			action,
-			services,
-		);
+		return commands.runComposeAction(rootDirectory, projectDirectory, action, services);
 	}
 	openExternalUrl(url: string): Promise<void> {
 		return openUrl(url);
 	}
 	getLogs(rootDirectory: string, projectDirectory: string): Promise<string> {
 		return commands.getComposeLogs(rootDirectory, projectDirectory);
+	}
+
+	listenComposeOutput(callback: (output: ComposeOutput) => void): Promise<UnlistenFn> {
+		return listen<ComposeOutput>("compose-output", ({ payload }) => callback(payload));
 	}
 }

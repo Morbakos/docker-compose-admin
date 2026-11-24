@@ -1,29 +1,135 @@
 <div class="app-shell new-shell">
-  <aside class="sidebar">
-    <div class="brand"><div class="brand-mark" aria-hidden="true">▦</div><div><strong>Compose Admin</strong><span>Environnement local</span></div></div>
-    <div class="sidebar-label">MES PROJETS <span class="project-count">{{ projects().length }}</span></div>
-    <div class="sidebar-projects">
-      @for (project of projects(); track project.directory) {
-        <button class="sidebar-project" [class.current]="selectedProject()?.directory === project.directory" type="button" (click)="selectProject(project.directory)">
-          <span class="mini-status" [class.is-running]="isRunning(project)"></span><span>{{ project.name }}</span>
-        </button>
-      } @empty { <p class="sidebar-empty">Aucun projet détecté</p> }
-    </div>
-    <button class="add-project" type="button" (click)="chooseDirectory()" [disabled]="choosingDirectory()">＋ {{ rootDirectory() ? 'Changer de dossier' : 'Ajouter un projet' }}</button>
-    <div class="sidebar-footer"><span class="connection-indicator" [class.is-connected]="dockerEngine().connected" [class.is-disconnected]="!dockerEngine().connected && !dockerEngine().checking"></span><div class="connection-copy"><strong>Docker Engine</strong><span>{{ dockerEngine().connected ? 'Connecté · v' + dockerEngine().version : dockerEngine().checking ? 'Vérification…' : 'Indisponible' }}</span></div></div>
-  </aside>
-  <main class="main-shell new-main">
-    <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong>{{ selectedProject()?.name ?? 'Sélection du projet' }}</strong></div><div class="topbar-actions"><span class="local-badge"><span></span> LOCAL</span><button class="refresh-button" type="button" (click)="refreshProjects()" [disabled]="scanning() || !rootDirectory()">↻ Actualiser</button></div></header>
-    <div class="content new-content">
-      @if (notice(); as currentNotice) { <div class="notice" [class.notice-error]="currentNotice.kind === 'error'" [class.notice-success]="currentNotice.kind === 'success'" role="status"><span class="notice-dot"></span><p>{{ currentNotice.text }}</p><button type="button" (click)="clearNotice()" aria-label="Fermer le message">×</button></div> }
-      @if (selectedProject(); as project) {
-        <app-project-workspace [project]="project" [containers]="containers()" [containersLoading]="containersLoading()" [selectedServices]="selectedServices()" [busy]="busyDirectory() === project.directory" [applicationUrl]="applicationUrl()" [logs]="logs()" [showingLogs]="logsDirectory() === project.directory" [loadingLogs]="loadingLogs()" (projectAction)="runAction($event)" (serviceToggle)="toggleService($event)" (selectAll)="selectAllServices()" (clearSelection)="clearSelectedServices()" (serviceAction)="runServiceAction($event.container,$event.action)" (openApplication)="openApplication()" (showLogs)="showLogs()" (closeLogs)="dismissLogs()" />
-      } @else if (scanning()) {
-        <div class="welcome-state"><div class="welcome-icon">◌</div><h1>Analyse de votre projet…</h1><p>Recherche des fichiers de configuration.</p></div>
-      } @else {
-        <div class="welcome-state"><div class="welcome-icon">▦</div><span class="eyebrow">VOTRE ENVIRONNEMENT LOCAL</span><h1>Un espace dédié à votre application.</h1><p>Sélectionnez le dossier de votre projet pour afficher ses services, les démarrer et ouvrir votre application.</p><button class="welcome-button" type="button" (click)="chooseDirectory()" [disabled]="choosingDirectory()">{{ choosingDirectory() ? 'Ouverture…' : 'Choisir le dossier du projet' }}</button></div>
-      }
-      <footer class="page-footer"><span>Compose Admin · Votre environnement local</span><span>Docker Compose CLI v2</span></footer>
-    </div>
-  </main>
+	<aside class="sidebar">
+		<div class="brand">
+			<div
+				class="brand-mark"
+				aria-hidden="true">
+				▦
+			</div>
+			<div><strong>Compose Admin</strong><span>Environnement local</span></div>
+		</div>
+		<div class="sidebar-label">
+			MES PROJETS <span class="project-count">{{ projects().length }}</span>
+		</div>
+		<div class="sidebar-projects">
+			@for (project of projects(); track project.directory) {
+				<button
+					class="sidebar-project"
+					[class.current]="selectedProject()?.directory === project.directory"
+					type="button"
+					(click)="selectProject(project.directory)">
+					<span
+						class="mini-status"
+						[class.is-running]="isRunning(project)"></span
+					><span>{{ project.name }}</span>
+				</button>
+			} @empty {
+				<p class="sidebar-empty">Aucun projet détecté</p>
+			}
+		</div>
+		<button
+			class="add-project"
+			type="button"
+			(click)="chooseDirectory()"
+			[disabled]="choosingDirectory()">
+			＋ {{ rootDirectory() ? "Changer de dossier" : "Ajouter un projet" }}
+		</button>
+		<div class="sidebar-footer">
+			<span
+				class="connection-indicator"
+				[class.is-connected]="dockerEngine().connected"
+				[class.is-disconnected]="!dockerEngine().connected && !dockerEngine().checking"></span>
+			<div class="connection-copy">
+				<strong>Docker Engine</strong
+				><span>{{
+					dockerEngine().connected
+						? "Connecté · v" + dockerEngine().version
+						: dockerEngine().checking
+							? "Vérification…"
+							: "Indisponible"
+				}}</span>
+			</div>
+		</div>
+	</aside>
+	<main class="main-shell new-main">
+		<header class="topbar">
+			<div class="breadcrumb">
+				Workspace <span>/</span> <strong>{{ selectedProject()?.name ?? "Sélection du projet" }}</strong>
+			</div>
+			<div class="topbar-actions">
+				<span class="local-badge"><span></span> LOCAL</span
+				><button
+					class="refresh-button"
+					type="button"
+					(click)="refreshProjects()"
+					[disabled]="scanning() || !rootDirectory()">
+					↻ Actualiser
+				</button>
+			</div>
+		</header>
+		<div class="content new-content">
+			@if (notice(); as currentNotice) {
+				<div
+					class="notice"
+					[class.notice-error]="currentNotice.kind === 'error'"
+					[class.notice-success]="currentNotice.kind === 'success'"
+					role="status">
+					<span class="notice-dot"></span>
+					<p>{{ currentNotice.text }}</p>
+					<button
+						type="button"
+						(click)="clearNotice()"
+						aria-label="Fermer le message">
+						×
+					</button>
+				</div>
+			}
+			@if (selectedProject(); as project) {
+				<app-project-workspace
+					[project]="project"
+					[containers]="containers()"
+					[containersLoading]="containersLoading()"
+					[selectedServices]="selectedServices()"
+					[busy]="busyDirectory() === project.directory"
+					[applicationUrl]="applicationUrl()"
+					[logs]="logs()"
+					[showingLogs]="logsDirectory() === project.directory"
+					[loadingLogs]="loadingLogs()"
+					(projectAction)="runAction($event)"
+					(serviceToggle)="toggleService($event)"
+					(selectAll)="selectAllServices()"
+					(clearSelection)="clearSelectedServices()"
+					(serviceAction)="runServiceAction($event.container, $event.action)"
+					(openApplication)="openApplication()"
+					(showLogs)="showLogs()"
+					(closeLogs)="dismissLogs()" />
+			} @else if (scanning()) {
+				<div class="welcome-state">
+					<div class="welcome-icon">◌</div>
+					<h1>Analyse de votre projet…</h1>
+					<p>Recherche des fichiers de configuration.</p>
+				</div>
+			} @else {
+				<div class="welcome-state">
+					<div class="welcome-icon">▦</div>
+					<span class="eyebrow">VOTRE ENVIRONNEMENT LOCAL</span>
+					<h1>Un espace dédié à votre application.</h1>
+					<p>
+						Sélectionnez le dossier de votre projet pour afficher ses services, les démarrer et ouvrir votre
+						application.
+					</p>
+					<button
+						class="welcome-button"
+						type="button"
+						(click)="chooseDirectory()"
+						[disabled]="choosingDirectory()">
+						{{ choosingDirectory() ? "Ouverture…" : "Choisir le dossier du projet" }}
+					</button>
+				</div>
+			}
+			<footer class="page-footer">
+				<span>Compose Admin · Votre environnement local</span><span>Docker Compose CLI v2</span>
+			</footer>
+		</div>
+	</main>
 </div>

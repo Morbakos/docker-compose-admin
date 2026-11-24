@@ -3,12 +3,25 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
+    io::{BufRead, BufReader, Stdout},
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     sync::{Mutex, OnceLock},
+    thread,
+    time::{SystemTime, UNIX_EPOCH},
 };
+use tauri::Emitter;
 
 static WATCH_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ComposeOutput {
+    project_directory: String,
+    stream: String,
+    line: String,
+    timestamp: u128,
+}
 
 fn watch_processes() -> &'static Mutex<BTreeMap<String, Child>> {
     WATCH_PROCESSES.get_or_init(|| Mutex::new(BTreeMap::new()))
@@ -37,7 +50,10 @@ fn validate_selected_services(
     }
 
     let available: BTreeSet<&str> = project.services.iter().map(String::as_str).collect();
-    if selected_services.iter().any(|service| !available.contains(service.as_str())) {
+    if selected_services
+        .iter()
+        .any(|service| !available.contains(service.as_str()))
+    {
         return Err("La sélection contient un service inconnu pour ce projet.".to_string());
     }
 
@@ -49,16 +65,25 @@ fn validate_selected_services(
         .collect())
 }
 
-fn start_watch_process(project: &ComposeProject, selected_services: &[String]) -> Result<String, String> {
+fn start_watch_process(
+    project: &ComposeProject,
+    selected_services: &[String],
+    app: tauri::AppHandle,
+) -> Result<String, String> {
     stop_watch_process(&project.directory);
     let mut args = compose_base_args(project);
-    args.extend(["up".to_string(), "--build".to_string(), "--watch".to_string()]);
+    args.extend([
+        "up".to_string(),
+        "--build".to_string(),
+        "--watch".to_string(),
+    ]);
     args.extend(selected_services.iter().cloned());
-    let child = Command::new("docker")
+    let mut child = Command::new("docker")
         .args(&args)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+		.env("BUILDKIT_PROGRESS", "plain")
         .spawn()
         .map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
@@ -67,10 +92,59 @@ fn start_watch_process(project: &ComposeProject, selected_services: &[String]) -
                 format!("Impossible de démarrer Docker Compose Watch : {error}")
             }
         })?;
-    watch_processes().lock()
+
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let project_directory = project.directory.clone();
+
+	// Lecture de stdout et stderr
+	// Et "forward" de ces logs vers le front
+    if let Some(stdout) = stdout {
+        forward_compose_output(stdout, app.clone(), project_directory.clone(), "stdout");
+    }
+    
+	if let Some(stderr) = stderr {
+        forward_compose_output(stderr, app.clone(), project_directory.clone(), "stderr");
+    }
+
+    watch_processes()
+        .lock()
         .map_err(|_| "Gestionnaire de surveillance indisponible.".to_string())?
         .insert(project.directory.clone(), child);
     Ok("Environnement démarré avec la synchronisation automatique du code.".to_string())
+}
+
+fn forward_compose_output<R: std::io::Read + Send + 'static>(
+    reader: R,
+    app: tauri::AppHandle,
+    project_directory: String,
+    stream: &'static str,
+) {
+    thread::spawn(move || {
+        let reader = BufReader::new(reader);
+        for line in reader.lines() {
+            let Ok(line) = line else {
+                break;
+            };
+
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
+
+            let output = ComposeOutput {
+                project_directory: project_directory.clone(),
+                stream: stream.to_string(),
+                line: line,
+                timestamp,
+            };
+
+            if let Err(error) = app.emit("compose-output", output) {
+                eprintln!("Failed to emit compose output event: {error}");
+                break;
+            }
+        }
+    });
 }
 
 const MAX_SCAN_DEPTH: usize = 16;
@@ -157,10 +231,7 @@ fn collect_compose_files(
             }
             collect_compose_files(&path, depth + 1, files)?;
         } else if file_type.is_file()
-            && entry
-                .file_name()
-                .to_str()
-                .is_some_and(is_compose_file_name)
+            && entry.file_name().to_str().is_some_and(is_compose_file_name)
         {
             files.push(path);
         }
@@ -273,7 +344,8 @@ fn compose_services(project: &ComposeProject) -> Result<Vec<String>, String> {
     args.extend(["config".to_string(), "--services".to_string()]);
     let output = run_docker(&args)?;
     let text = String::from_utf8_lossy(&output.stdout);
-    let mut services: Vec<String> = text.lines()
+    let mut services: Vec<String> = text
+        .lines()
         .map(str::trim)
         .filter(|name| !name.is_empty())
         .map(str::to_string)
@@ -285,7 +357,12 @@ fn compose_services(project: &ComposeProject) -> Result<Vec<String>, String> {
 
 fn project_status(project: &ComposeProject) -> String {
     let mut args = compose_base_args(project);
-    args.extend(["ps".to_string(), "--all".to_string(), "--format".to_string(), "json".to_string()]);
+    args.extend([
+        "ps".to_string(),
+        "--all".to_string(),
+        "--format".to_string(),
+        "json".to_string(),
+    ]);
 
     let output = match run_docker(&args) {
         Ok(output) => output,
@@ -332,7 +409,10 @@ fn project_status(project: &ComposeProject) -> String {
 
     if states.is_empty() {
         "unknown".to_string()
-    } else if states.iter().any(|state| state == "running" || state.starts_with("up ")) {
+    } else if states
+        .iter()
+        .any(|state| state == "running" || state.starts_with("up "))
+    {
         "running".to_string()
     } else {
         "stopped".to_string()
@@ -354,7 +434,10 @@ fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
 
     for file in compose_files {
         if let Some(parent) = file.parent() {
-            by_directory.entry(parent.to_path_buf()).or_default().push(file);
+            by_directory
+                .entry(parent.to_path_buf())
+                .or_default()
+                .push(file);
         }
     }
 
@@ -400,7 +483,10 @@ fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
     Ok(projects)
 }
 
-fn resolve_project(root_directory: &str, project_directory: &str) -> Result<ComposeProject, String> {
+fn resolve_project(
+    root_directory: &str,
+    project_directory: &str,
+) -> Result<ComposeProject, String> {
     let root = PathBuf::from(root_directory)
         .canonicalize()
         .map_err(|error| format!("Dossier racine inaccessible : {error}"))?;
@@ -453,6 +539,7 @@ pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<Compos
 #[tauri::command]
 #[specta::specta]
 pub async fn run_compose_action(
+	app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
     action: String,
@@ -466,7 +553,7 @@ pub async fn run_compose_action(
             action == "start" || action == "restart" || action == "build",
         )?;
         match action.as_str() {
-            "start" | "restart" => start_watch_process(&project, &selected_services),
+            "start" | "restart" => start_watch_process(&project, &selected_services, app),
             "stop" => {
                 stop_watch_process(&project.directory);
                 let mut args = compose_base_args(&project);
@@ -515,7 +602,6 @@ pub async fn get_compose_logs(
     .map_err(|error| format!("La récupération des logs a échoué : {error}"))?
 }
 
-
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeContainer {
@@ -530,82 +616,191 @@ pub struct ComposeContainer {
 }
 
 fn parse_port_list(row: &Value) -> Vec<String> {
-    let Some(publishers) = row.get("Publishers").or_else(|| row.get("Ports")) else { return Vec::new(); };
+    let Some(publishers) = row.get("Publishers").or_else(|| row.get("Ports")) else {
+        return Vec::new();
+    };
     if let Some(text) = publishers.as_str() {
-        return text.split(',').map(str::trim).filter(|s| !s.is_empty()).map(String::from).collect();
+        return text
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
     }
-    publishers.as_array().map(|items| items.iter().filter_map(|item| {
-        let host = item.get("PublishedPort").and_then(Value::as_u64).map(|p| p.to_string());
-        let target = item.get("TargetPort").and_then(Value::as_u64).map(|p| p.to_string());
-        let protocol = item.get("Protocol").and_then(Value::as_str).unwrap_or("tcp");
-        match (host, target) {
-            (Some(h), Some(t)) => Some(format!("{h}:{t}/{protocol}")),
-            (None, Some(t)) => Some(format!("{t}/{protocol}")),
-            _ => None,
-        }
-    }).collect()).unwrap_or_default()
+    publishers
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    let host = item
+                        .get("PublishedPort")
+                        .and_then(Value::as_u64)
+                        .map(|p| p.to_string());
+                    let target = item
+                        .get("TargetPort")
+                        .and_then(Value::as_u64)
+                        .map(|p| p.to_string());
+                    let protocol = item
+                        .get("Protocol")
+                        .and_then(Value::as_str)
+                        .unwrap_or("tcp");
+                    match (host, target) {
+                        (Some(h), Some(t)) => Some(format!("{h}:{t}/{protocol}")),
+                        (None, Some(t)) => Some(format!("{t}/{protocol}")),
+                        _ => None,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn container_stats() -> BTreeMap<String, (String, String)> {
-    let output = Command::new("docker").args(["stats", "--no-stream", "--format", "{{json .}}"]).output();
-    let Ok(output) = output else { return BTreeMap::new(); };
-    if !output.status.success() { return BTreeMap::new(); }
+    let output = Command::new("docker")
+        .args(["stats", "--no-stream", "--format", "{{json .}}"])
+        .output();
+    let Ok(output) = output else {
+        return BTreeMap::new();
+    };
+    if !output.status.success() {
+        return BTreeMap::new();
+    }
     let mut stats = BTreeMap::new();
     for line in String::from_utf8_lossy(&output.stdout).lines() {
         if let Ok(row) = serde_json::from_str::<Value>(line) {
             let name = row.get("Name").and_then(Value::as_str).unwrap_or_default();
             let cpu = row.get("CPUPerc").and_then(Value::as_str).unwrap_or("--");
             let mem = row.get("MemUsage").and_then(Value::as_str).unwrap_or("--");
-            if !name.is_empty() { stats.insert(name.to_string(), (cpu.to_string(), mem.to_string())); }
+            if !name.is_empty() {
+                stats.insert(name.to_string(), (cpu.to_string(), mem.to_string()));
+            }
         }
     }
     stats
 }
 
-fn container_list(root_directory: &str, project_directory: &str) -> Result<Vec<ComposeContainer>, String> {
+fn container_list(
+    root_directory: &str,
+    project_directory: &str,
+) -> Result<Vec<ComposeContainer>, String> {
     let project = resolve_project(root_directory, project_directory)?;
     let mut args = compose_base_args(&project);
-    args.extend(["ps", "--all", "--format", "json"].iter().map(|s| s.to_string()));
+    args.extend(
+        ["ps", "--all", "--format", "json"]
+            .iter()
+            .map(|s| s.to_string()),
+    );
     let output = run_docker(&args)?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut rows = Vec::new();
     if let Ok(value) = serde_json::from_str::<Value>(&stdout) {
-        if let Some(array) = value.as_array() { rows.extend(array.iter().cloned()); } else { rows.push(value); }
+        if let Some(array) = value.as_array() {
+            rows.extend(array.iter().cloned());
+        } else {
+            rows.push(value);
+        }
     } else {
-        for line in stdout.lines() { if let Ok(row) = serde_json::from_str::<Value>(line) { rows.push(row); } }
+        for line in stdout.lines() {
+            if let Ok(row) = serde_json::from_str::<Value>(line) {
+                rows.push(row);
+            }
+        }
     }
     let stats = container_stats();
-    Ok(rows.into_iter().map(|row| {
-        let id = row.get("ID").or_else(|| row.get("Id")).and_then(Value::as_str).unwrap_or("").to_string();
-        let name = row.get("Name").or_else(|| row.get("Names")).and_then(Value::as_str).unwrap_or("").trim_start_matches('/').to_string();
-        let service = row.get("Service").and_then(Value::as_str).unwrap_or("").to_string();
-        let state = row.get("State").or_else(|| row.get("Status")).and_then(Value::as_str).unwrap_or("unknown").to_lowercase();
-        let status = row.get("Status").and_then(Value::as_str).unwrap_or(&state).to_string();
-        let (cpu, memory) = stats.get(&name).cloned().unwrap_or_default();
-        ComposeContainer { id, name, service, state, status, ports: parse_port_list(&row), cpu: if cpu.is_empty() { None } else { Some(cpu) }, memory: if memory.is_empty() { None } else { Some(memory) } }
-    }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let id = row
+                .get("ID")
+                .or_else(|| row.get("Id"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let name = row
+                .get("Name")
+                .or_else(|| row.get("Names"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim_start_matches('/')
+                .to_string();
+            let service = row
+                .get("Service")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let state = row
+                .get("State")
+                .or_else(|| row.get("Status"))
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_lowercase();
+            let status = row
+                .get("Status")
+                .and_then(Value::as_str)
+                .unwrap_or(&state)
+                .to_string();
+            let (cpu, memory) = stats.get(&name).cloned().unwrap_or_default();
+            ComposeContainer {
+                id,
+                name,
+                service,
+                state,
+                status,
+                ports: parse_port_list(&row),
+                cpu: if cpu.is_empty() { None } else { Some(cpu) },
+                memory: if memory.is_empty() {
+                    None
+                } else {
+                    Some(memory)
+                },
+            }
+        })
+        .collect())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_compose_containers(root_directory: String, project_directory: String) -> Result<Vec<ComposeContainer>, String> {
-    tauri::async_runtime::spawn_blocking(move || container_list(&root_directory, &project_directory))
-        .await.map_err(|e| format!("Récupération des containers impossible : {e}"))?
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn run_compose_service_action(root_directory: String, project_directory: String, service: String, action: String) -> Result<String, String> {
+pub async fn get_compose_containers(
+    root_directory: String,
+    project_directory: String,
+) -> Result<Vec<ComposeContainer>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        if service.is_empty() || !service.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.')) {
+        container_list(&root_directory, &project_directory)
+    })
+    .await
+    .map_err(|e| format!("Récupération des containers impossible : {e}"))?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn run_compose_service_action(
+    root_directory: String,
+    project_directory: String,
+    service: String,
+    action: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if service.is_empty()
+            || !service
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+        {
             return Err("Nom de service invalide.".to_string());
         }
         let project = resolve_project(&root_directory, &project_directory)?;
-        let verb = match action.as_str() { "start" => "start", "stop" => "stop", "restart" => "restart", _ => return Err("Action de service non autorisée.".to_string()) };
+        let verb = match action.as_str() {
+            "start" => "start",
+            "stop" => "stop",
+            "restart" => "restart",
+            _ => return Err("Action de service non autorisée.".to_string()),
+        };
         let mut args = compose_base_args(&project);
         args.extend([verb.to_string(), service]);
         run_docker(&args).map(output_text)
-    }).await.map_err(|e| format!("Action service échouée : {e}"))?
+    })
+    .await
+    .map_err(|e| format!("Action service échouée : {e}"))?
 }
 
 #[cfg(test)]

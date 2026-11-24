@@ -1,0 +1,19 @@
+<section class="logs-panel">
+	<div class="heading">
+		<div>
+			<h2>Logs de l’environnement</h2>
+			<p>Actualisation automatique pendant la consultation.</p>
+		</div>
+		<button
+			type="button"
+			(click)="closed.emit()"
+			aria-label="Fermer les logs">
+			×
+		</button>
+	</div>
+	@if (loading()) {
+	<p class="muted">Chargement des logs…</p>
+	} @else {
+	<pre>{{ logs() || 'Aucun log disponible pour ce projet.' }}</pre>
+	}
+</section>

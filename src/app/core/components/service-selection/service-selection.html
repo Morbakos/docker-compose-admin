@@ -1,0 +1,42 @@
+<section class="services-card">
+	<div class="card-heading">
+		<div>
+			<span class="eyebrow">CONFIGURATION</span>
+			<h2>Services à lancer</h2>
+			<p>Choisissez les services nécessaires à votre session.</p>
+		</div>
+		<span class="selection-count">{{ selected().length }} / {{ services().length }} sélectionnés</span>
+	</div>
+	@if (services().length === 0) {
+	<p class="empty-copy">Aucun service détecté dans les fichiers Compose.</p>
+	} @else {
+	<div class="selection-toolbar">
+		<button
+			type="button"
+			(click)="selectAll.emit()">
+			Tout sélectionner
+		</button>
+		<button
+			type="button"
+			(click)="clear.emit()">
+			Tout désélectionner
+		</button>
+	</div>
+	<div class="service-grid">
+		@for (service of services(); track service) {
+		<label
+			class="service-choice"
+			[class.checked]="selected().includes(service)">
+			<input
+				type="checkbox"
+				[checked]="selected().includes(service)"
+				(change)="toggled.emit(service)" />
+			<span
+				class="checkmark"
+				aria-hidden="true"></span>
+			<span class="service-name">{{ service }}</span>
+		</label>
+		}
+	</div>
+	}
+</section>
