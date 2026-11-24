@@ -25,6 +25,7 @@ export interface UpdateInfo {
 }
 export interface ComposeOutput {
 	projectDirectory: string;
+	source: "watch" | "container";
 	stream: "stdout" | "stderr";
 	line: string;
 	timestamp: number;
@@ -87,8 +88,11 @@ export class DockerService {
 	openExternalUrl(url: string): Promise<void> {
 		return openUrl(url);
 	}
-	getLogs(rootDirectory: string, projectDirectory: string): Promise<string> {
-		return commands.getComposeLogs(rootDirectory, projectDirectory);
+	startComposeLogs(rootDirectory: string, projectDirectory: string): Promise<void> {
+		return invoke("start_compose_logs", { rootDirectory, projectDirectory });
+	}
+	stopComposeLogs(rootDirectory: string, projectDirectory: string): Promise<void> {
+		return invoke("stop_compose_logs", { rootDirectory, projectDirectory });
 	}
 
 	listenComposeOutput(callback: (output: ComposeOutput) => void): Promise<UnlistenFn> {
