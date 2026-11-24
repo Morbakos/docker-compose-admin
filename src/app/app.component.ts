@@ -195,9 +195,6 @@ export class AppComponent {
 
 	selectProject(directory: string): void {
 		this.selectedDirectory.set(directory);
-		const project = this.projects().find((project) => project.directory === directory);
-		if (project) {
-		}
 	}
 
 	async saveComposeFiles(project: PersistedComposeProject, files: string[]): Promise<void> {
