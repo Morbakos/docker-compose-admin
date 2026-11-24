@@ -9,6 +9,7 @@ import {
 	PersistedComposeProject,
 } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
+import { ProjectRegistryService } from "./core/services/project-registry.service";
 
 type NoticeKind = "success" | "error" | "info";
 
@@ -20,6 +21,12 @@ type NoticeKind = "success" | "error" | "info";
 })
 export class AppComponent {
 	private readonly docker = inject(DockerService);
+	private readonly registry = inject(ProjectRegistryService);
+	readonly projects = this.registry.projects;
+	readonly selectedDirectory = this.registry.selectedDirectory;
+	readonly scanning = this.registry.scanning;
+	readonly selectedProject = this.registry.selectedProject;
+	readonly selectedServices = this.registry.selectedServices;
 	readonly buildInfo = signal<BuildInfo>({ version: "…", commit: "…", updaterEnabled: false });
 	readonly availableUpdate = signal<UpdateInfo | null>(null);
 	readonly checkingForUpdates = signal(false);
@@ -30,18 +37,10 @@ export class AppComponent {
 		error: null,
 		checking: true,
 	});
-	readonly projects = signal<PersistedComposeProject[]>([]);
-	readonly selectedDirectory = signal<string | null>(null);
-	readonly scanning = signal(false);
 	readonly choosingDirectory = signal(false);
 	readonly busyDirectory = signal<string | null>(null);
 	private updateCheckTimer: number | null = null;
 	readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
-
-	readonly selectedProject = computed(
-		() => this.projects().find((project) => project.directory === this.selectedDirectory()) ?? null,
-	);
-	readonly selectedServices = computed(() => this.selectedProject()?.selectedServices ?? []);
 
 	constructor() {
 		const refreshTimer = window.setInterval(() => {
@@ -100,9 +99,8 @@ export class AppComponent {
 			const selected = await this.docker.chooseDirectory();
 			if (!selected) return;
 			const previousDirectories = new Set(this.projects().map((project) => project.directory));
-			let projects = await this.docker.addRegisteredProjects(selected);
-			projects = await this.migrateLegacyServiceSelections(projects);
-			this.projects.set(projects);
+			await this.registry.addDirectory(selected);
+			const projects = this.projects();
 			const added = projects.find((project) => !previousDirectories.has(project.directory) && project.accessible) ?? projects.find((project) => project.accessible);
 			if (added) this.selectProject(added.directory);
 			this.setNotice("success", "Projet ajouté à Compose Admin.");
@@ -131,62 +129,18 @@ export class AppComponent {
 	}
 
 	async refreshProjects(silent = false): Promise<void> {
-		if (this.scanning()) return;
-		this.scanning.set(true);
 		try {
-			const registeredProjects = await this.docker.listRegisteredProjects();
-			const projects = await this.migrateLegacyServiceSelections(registeredProjects);
-			this.projects.set(projects);
-			const selected = this.selectedDirectory();
-			if (!selected || !projects.some((project) => project.directory === selected))
-				this.selectedDirectory.set(projects[0]?.directory ?? null);
+			await this.registry.refresh();
 			if (!silent) this.clearNotice();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
-		} finally {
-			this.scanning.set(false);
 		}
-	}
-	private async migrateLegacyServiceSelections(
-		projects: PersistedComposeProject[],
-	): Promise<PersistedComposeProject[]> {
-		const raw = localStorage.getItem("compose-admin.service-selections");
-		if (!raw) return projects;
-		let legacy: Record<string, string[]>;
-		try {
-			legacy = JSON.parse(raw) as Record<string, string[]>;
-		} catch {
-			localStorage.removeItem("compose-admin.service-selections");
-			return projects;
-		}
-		const remaining = { ...legacy };
-		const migrated = [...projects];
-		for (let index = 0; index < migrated.length; index++) {
-			const project = migrated[index];
-			const previous = remaining[project.directory];
-			if (!previous || !project.accessible) continue;
-			const services = previous.filter((service) => project.services.includes(service));
-			try {
-				await this.docker.saveProjectServices(project.directory, services);
-				migrated[index] = { ...project, selectedServices: services };
-				delete remaining[project.directory];
-			} catch (error) {
-				console.warn("Unable to migrate saved service selection", error);
-			}
-		}
-		if (Object.keys(remaining).length === 0) localStorage.removeItem("compose-admin.service-selections");
-		else localStorage.setItem("compose-admin.service-selections", JSON.stringify(remaining));
-		return migrated;
 	}
 
 	async removeProject(project: PersistedComposeProject): Promise<void> {
 		if (!window.confirm("Retirer « " + project.name + " » de Compose Admin ? Ses fichiers ne seront pas modifiés et un environnement Docker déjà lancé ne sera pas arrêté.")) return;
 		try {
-			await this.docker.removeRegisteredProject(project.directory);
-			if (this.selectedDirectory() === project.directory) {
-				this.selectedDirectory.set(null);
-			}
-			await this.refreshProjects(true);
+			await this.registry.removeProject(project.directory);
 			this.setNotice("success", "Projet retiré de Compose Admin. Ses fichiers et les conteneurs existants n'ont pas été touchés.");
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
@@ -194,17 +148,14 @@ export class AppComponent {
 	}
 
 	selectProject(directory: string): void {
-		this.selectedDirectory.set(directory);
+		this.registry.selectProject(directory);
 	}
 
 	async saveComposeFiles(project: PersistedComposeProject, files: string[]): Promise<void> {
 		if (files.length === 0) return;
 		const wasRunning = this.isRunning(project);
 		try {
-			const updated = await this.docker.saveProjectComposeFiles(project.directory, files);
-			this.projects.update((projects) => projects.map((item) =>
-				item.directory === project.directory ? { ...item, ...updated } : item
-			));
+			await this.registry.saveComposeFiles(project, files);
 			if (wasRunning) {
 				this.setNotice("info", "Fichiers Compose enregistrés. L’environnement est déjà démarré : redémarrez-le manuellement pour appliquer cette configuration.");
 			} else {
@@ -232,10 +183,7 @@ export class AppComponent {
 	}
 	private async saveSelectedServices(project: PersistedComposeProject, services: string[]): Promise<void> {
 		try {
-			await this.docker.saveProjectServices(project.directory, services);
-			this.projects.update((projects) => projects.map((item) =>
-				item.directory === project.directory ? { ...item, selectedServices: services } : item
-			));
+			await this.registry.saveServices(project, services);
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		}
