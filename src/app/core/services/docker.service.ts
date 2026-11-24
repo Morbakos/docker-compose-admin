@@ -5,6 +5,11 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { commands, type ComposeContainer, type ComposeProject, type DockerEngineStatus } from "@bindings";
 
 export type { ComposeContainer, ComposeProject, DockerEngineStatus };
+export type PersistedComposeProject = ComposeProject & {
+	rootDirectory: string;
+	selectedServices: string[];
+	accessible: boolean;
+};
 export type DockerEngineStatusWithChecking = DockerEngineStatus & {
 	checking?: boolean;
 };
@@ -38,6 +43,18 @@ export class DockerService {
 	}
 	getEngineStatus(): Promise<DockerEngineStatusWithChecking> {
 		return commands.getDockerEngineStatus();
+	}
+	listRegisteredProjects(): Promise<PersistedComposeProject[]> {
+		return invoke("list_registered_projects");
+	}
+	addRegisteredProjects(directory: string): Promise<PersistedComposeProject[]> {
+		return invoke("add_registered_projects", { directory });
+	}
+	removeRegisteredProject(directory: string): Promise<void> {
+		return invoke("remove_registered_project", { directory });
+	}
+	saveProjectServices(directory: string, services: string[]): Promise<void> {
+		return invoke("save_project_services", { directory, services });
 	}
 	chooseDirectory(): Promise<string | null> {
 		return commands.pickComposeDirectory();
