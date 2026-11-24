@@ -331,7 +331,7 @@ export class AppComponent {
 		this.logRequestActive = true;
 		try {
 			this.logs.set(
-				(await this.docker.getLogs(root, project.directory)) || "Aucun log disponible pour ce projet.",
+				(await this.docker.getLogs(project.rootDirectory, project.directory)) || "Aucun log disponible pour ce projet.",
 			);
 		} catch (error) {
 			this.logs.set(this.errorMessage(error));
