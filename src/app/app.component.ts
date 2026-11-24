@@ -1,5 +1,7 @@
 import { Component, computed, DestroyRef, inject, signal } from "@angular/core";
 import {
+	BuildInfo,
+	UpdateInfo,
 	ComposeAction,
 	ComposeContainer,
 	ComposeProject,
@@ -18,6 +20,10 @@ type NoticeKind = "success" | "error" | "info";
 })
 export class AppComponent {
 	private readonly docker = inject(DockerService);
+	readonly buildInfo = signal<BuildInfo>({ version: "…", commit: "…", updaterEnabled: false });
+	readonly availableUpdate = signal<UpdateInfo | null>(null);
+	readonly checkingForUpdates = signal(false);
+	readonly installingUpdate = signal(false);
 	readonly dockerEngine = signal<DockerEngineStatusWithChecking>({
 		connected: false,
 		version: null,
@@ -58,7 +64,8 @@ export class AppComponent {
 			}
 		}
 		const refreshTimer = window.setInterval(() => {
-			void this.refreshDockerStatus();
+			void this.loadBuildInfo();
+		void this.refreshDockerStatus();
 			if (this.dockerEngine().connected && this.rootDirectory() && !this.scanning())
 				void this.refreshProjects(true);
 		}, 15000);
@@ -74,6 +81,41 @@ export class AppComponent {
 		}
 
 		this.docker.listenComposeOutput((output) => console.log(output));
+	}
+
+	async loadBuildInfo(): Promise<void> {
+		try {
+			const info = await this.docker.getBuildInfo();
+			this.buildInfo.set(info);
+			if (info.updaterEnabled) void this.checkForUpdates();
+		} catch (error) {
+			console.error("Unable to read application build information", error);
+		}
+	}
+
+	async checkForUpdates(): Promise<void> {
+		if (this.checkingForUpdates() || !this.buildInfo().updaterEnabled) return;
+		this.checkingForUpdates.set(true);
+		try {
+			this.availableUpdate.set(await this.docker.checkForUpdate());
+		} catch (error) {
+			console.warn("Unable to check for application updates", error);
+		} finally {
+			this.checkingForUpdates.set(false);
+		}
+	}
+
+	async installUpdate(): Promise<void> {
+		const update = this.availableUpdate();
+		if (!update || this.installingUpdate()) return;
+		if (!window.confirm("Installer la version " + update.version + " et redémarrer Compose Admin ?")) return;
+		this.installingUpdate.set(true);
+		try {
+			await this.docker.installUpdate(update.version);
+		} catch (error) {
+			this.setNotice("error", this.errorMessage(error));
+			this.installingUpdate.set(false);
+		}
 	}
 
 	async chooseDirectory(): Promise<void> {
