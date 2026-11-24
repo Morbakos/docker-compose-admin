@@ -110,7 +110,8 @@ export class AppComponent {
 			const selected = await this.docker.chooseDirectory();
 			if (!selected) return;
 			const previousDirectories = new Set(this.projects().map((project) => project.directory));
-			const projects = await this.docker.addRegisteredProjects(selected);
+			let projects = await this.docker.addRegisteredProjects(selected);
+			projects = await this.migrateLegacyServiceSelections(projects);
 			this.projects.set(projects);
 			const added = projects.find((project) => !previousDirectories.has(project.directory) && project.accessible) ?? projects.find((project) => project.accessible);
 			if (added) this.selectProject(added.directory);
@@ -143,7 +144,8 @@ export class AppComponent {
 		if (this.scanning()) return;
 		this.scanning.set(true);
 		try {
-			const projects = await this.docker.listRegisteredProjects();
+			const registeredProjects = await this.docker.listRegisteredProjects();
+			const projects = await this.migrateLegacyServiceSelections(registeredProjects);
 			this.projects.set(projects);
 			const selected = this.selectedDirectory();
 			if (!selected || !projects.some((project) => project.directory === selected))
@@ -158,6 +160,38 @@ export class AppComponent {
 			this.scanning.set(false);
 		}
 	}
+	private async migrateLegacyServiceSelections(
+		projects: PersistedComposeProject[],
+	): Promise<PersistedComposeProject[]> {
+		const raw = localStorage.getItem("compose-admin.service-selections");
+		if (!raw) return projects;
+		let legacy: Record<string, string[]>;
+		try {
+			legacy = JSON.parse(raw) as Record<string, string[]>;
+		} catch {
+			localStorage.removeItem("compose-admin.service-selections");
+			return projects;
+		}
+		const remaining = { ...legacy };
+		const migrated = [...projects];
+		for (let index = 0; index < migrated.length; index++) {
+			const project = migrated[index];
+			const previous = remaining[project.directory];
+			if (!previous || !project.accessible) continue;
+			const services = previous.filter((service) => project.services.includes(service));
+			try {
+				await this.docker.saveProjectServices(project.directory, services);
+				migrated[index] = { ...project, selectedServices: services };
+				delete remaining[project.directory];
+			} catch (error) {
+				console.warn("Unable to migrate saved service selection", error);
+			}
+		}
+		if (Object.keys(remaining).length === 0) localStorage.removeItem("compose-admin.service-selections");
+		else localStorage.setItem("compose-admin.service-selections", JSON.stringify(remaining));
+		return migrated;
+	}
+
 	async removeProject(project: PersistedComposeProject): Promise<void> {
 		if (!window.confirm("Retirer « " + project.name + " » de Compose Admin ? Ses fichiers ne seront pas modifiés et un environnement Docker déjà lancé ne sera pas arrêté.")) return;
 		try {
