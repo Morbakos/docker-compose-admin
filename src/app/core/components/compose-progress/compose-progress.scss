@@ -1,44 +1,48 @@
 :host {
 	display: block;
-	min-width: 0;
 	width: 100%;
+	min-width: 0;
 }
 
 .compose-progress {
 	position: relative;
-	overflow: hidden;
+	display: flex;
 	width: 100%;
+	min-width: 0;
+	flex-direction: column;
+	overflow: hidden;
 	border: 1px solid #dfe6f0;
 	border-radius: 14px;
 	background: #fff;
 	box-shadow: 0 5px 18px #233c5b08;
 }
 
-.compose-progress header {
+.progress-header {
 	display: flex;
-	min-height: 67px;
+	min-height: 66px;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
-	padding: 14px 18px;
+	gap: 16px;
+	padding: 12px 18px;
 	border-bottom: 1px solid #e9edf4;
 }
 
-.compose-progress header > div {
+.progress-title,
+.progress-actions {
 	display: flex;
 	min-width: 0;
 	align-items: center;
 	gap: 10px;
 }
 
-.compose-progress header strong {
+.progress-title strong {
 	color: #27364d;
 	font-size: 15px;
 	font-weight: 750;
 }
 
-.compose-progress header span {
-	padding: 4px 8px;
+.line-count {
+	padding: 4px 9px;
 	border-radius: 20px;
 	color: #65758e;
 	background: #f0f3f8;
@@ -47,31 +51,75 @@
 	white-space: nowrap;
 }
 
-.fullscreen-button, .clean-logs-button {
-	flex: 0 0 auto;
-	min-height: 34px;
+.toolbar-button {
+	display: inline-flex;
+	min-height: 36px;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
 	padding: 0 11px;
 	border: 1px solid #dfe6f0;
 	border-radius: 8px;
 	color: #526782;
-	background: #f8faff;
+	background: #fff;
 	font: inherit;
 	font-size: 12px;
 	font-weight: 650;
+	white-space: nowrap;
 	cursor: pointer;
+	transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.toolbar-button:hover:not(:disabled) {
+	border-color: #c5d2e3;
+	color: #263b58;
+	background: #f5f8fc;
+}
+
+.toolbar-button:focus-visible {
+	outline: 2px solid #6b9de0;
+	outline-offset: 2px;
+}
+
+.toolbar-button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.clear-button .button-icon {
+	font-size: 16px;
+	line-height: 1;
+}
+
+.fullscreen-button {
+	color: #fff;
+	border-color: #29496f;
+	background: #29496f;
+}
+
+.fullscreen-button:hover:not(:disabled) {
+	color: #fff;
+	border-color: #203d60;
+	background: #203d60;
+}
+
+.fullscreen-button .button-icon {
+	font-size: 16px;
+	line-height: 1;
 }
 
 .console {
 	display: flex;
 	height: 360px;
+	min-height: 0;
 	flex-direction: column;
 	gap: 3px;
 	overflow: auto;
 	padding: 15px 18px;
-	color: #34445b;
-	background: #fbfcfe;
+	color: #d3dbea;
+	background: #172235;
 	font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-	scrollbar-color: #c5cfdd #f1f4f8;
+	scrollbar-color: #52647d #202f45;
 	scrollbar-width: thin;
 }
 
@@ -84,7 +132,7 @@
 }
 
 .timestamp {
-	color: #8997aa;
+	color: #8192aa;
 	user-select: none;
 }
 
@@ -92,20 +140,25 @@
 	min-width: 0;
 	overflow-wrap: anywhere;
 	white-space: pre-wrap;
-	color: #34445b;
+	color: #d3dbea;
 }
 
 .log-line.error .message {
-	color: #c33d3d;
+	color: #ff9292;
+}
+
+.empty-state {
+	margin: auto;
+	color: #91a0b5;
+	font: 12px/1.6 inherit;
+	text-align: center;
 }
 
 .compose-progress.is-fullscreen {
 	position: fixed;
 	z-index: 1000;
 	inset: 16px;
-	display: flex;
 	width: auto;
-	flex-direction: column;
 	border-radius: 16px;
 	box-shadow: 0 18px 70px #17263d40;
 }
@@ -113,13 +166,25 @@
 .is-fullscreen .console {
 	flex: 1;
 	height: auto;
-	min-height: 0;
 	font-size: 13px;
 }
 
 @media (max-width: 600px) {
-	.compose-progress header {
-		padding: 12px 14px;
+	.progress-header {
+		align-items: flex-start;
+		padding: 12px;
+	}
+	.progress-title {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 5px;
+	}
+	.progress-actions {
+		gap: 6px;
+	}
+	.toolbar-button {
+		min-height: 34px;
+		padding: 0 8px;
 	}
 	.console {
 		height: 300px;
