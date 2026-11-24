@@ -2,7 +2,6 @@ import { DatePipe } from "@angular/common";
 import {
 	afterRenderEffect,
 	Component,
-	computed,
 	effect,
 	ElementRef,
 	HostListener,
@@ -26,53 +25,51 @@ export class ComposeProgress implements OnDestroy {
 	readonly fullscreen = signal(false);
 
 	private readonly docker = inject(DockerService);
+	private readonly console = viewChild<ElementRef<HTMLDivElement>>("console");
 	private unlisten?: () => void;
 
-	private readonly element = viewChild<ElementRef<HTMLDivElement>>("console");
-	private readonly atBottom = signal(true);
-
 	constructor() {
-		effect(() => {
+		effect((onCleanup) => {
 			const directory = this.projectDirectory();
+			let cancelled = false;
 			this.lines.set([]);
 			this.unlisten?.();
-			this.docker
-				.listenComposeOutput((output) => {
-					if (output.projectDirectory !== directory) return;
+			this.unlisten = undefined;
+
+			this.docker.listenComposeOutput((output) => {
+				if (output.projectDirectory === directory && output.source === "watch") {
 					this.lines.update((current) => [...current, output]);
-				})
-				.then((unlisten) => (this.unlisten = unlisten));
+				}
+			}).then((unlisten) => {
+				if (cancelled) unlisten();
+				else this.unlisten = unlisten;
+			});
+
+			onCleanup(() => {
+				cancelled = true;
+				this.unlisten?.();
+				this.unlisten = undefined;
+			});
 		});
 
 		afterRenderEffect(() => {
 			this.lines();
-
-			const element = this.element()?.nativeElement;
-			if (element && this.atBottom()) {
-				element.scrollTop = element.scrollHeight;
-			}
+			const element = this.console()?.nativeElement;
+			if (element) element.scrollTop = element.scrollHeight;
 		});
 	}
 
-	toggleFullscreen(): void {
+	protected toggleFullscreen(): void {
 		this.fullscreen.update((value) => !value);
 	}
 
-	protected clearLogs() {
+	protected clearLogs(): void {
 		this.lines.set([]);
 	}
 
 	@HostListener("document:keydown.escape")
 	onEscape(): void {
 		this.fullscreen.set(false);
-	}
-
-	protected onScroll() {
-		const element = this.element()?.nativeElement;
-		if (!element) {
-			return;
-		}
-		this.atBottom.set(element.scrollHeight - element.scrollTop - element.clientHeight < 5);
 	}
 
 	ngOnDestroy(): void {
