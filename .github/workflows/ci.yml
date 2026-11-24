@@ -29,6 +29,8 @@ jobs:
             os: macos
 
     runs-on: ${{ matrix.platform }}
+    env:
+      GIT_COMMIT: ${{ github.sha }}
 
     steps:
       - name: Checkout
