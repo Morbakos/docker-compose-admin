@@ -7,74 +7,23 @@
 			<p>{{ project().relativeDirectory }}</p>
 		</div>
 	</div>
-	<span
-		class="status"
-		[class.running]="project().status === 'running'"
-		><i></i>{{ project().status === 'running' ? 'En cours' : project().status === 'stopped' ? 'Arrêté' : 'État
-		inconnu' }}</span
-	>
+	<span class="status" [class.running]="project().status === 'running'"><i></i>{{ project().status === 'running' ? 'En cours' : project().status === 'stopped' ? 'Arrêté' : 'État inconnu' }}</span>
 </div>
 <div class="action-bar">
 	@if (project().status === 'running') {
-	<button
-		class="primary stop"
-		type="button"
-		[disabled]="busy()"
-		(click)="projectAction.emit('stop')">
-		■ Arrêter l’environnement
-	</button>
+	<button class="primary stop" type="button" [disabled]="busy()" (click)="projectAction.emit('stop')">■ Arrêter l’environnement</button>
 	} @else {
-	<button
-		class="primary"
-		type="button"
-		[disabled]="busy() || selectedServices().length === 0"
-		(click)="projectAction.emit('start')">
-		▶ Démarrer l’environnement
-	</button>
+	<button class="primary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('start')">▶ Démarrer l’environnement</button>
 	}
-	<button
-		class="secondary"
-		type="button"
-		[disabled]="busy() || selectedServices().length === 0"
-		(click)="projectAction.emit('restart')">
-		↻ Redémarrer
-	</button>
-	<button
-		class="secondary"
-		type="button"
-		[disabled]="busy() || selectedServices().length === 0"
-		(click)="projectAction.emit('build')">
-		⚒ Construire les images
-	</button>
-	<button
-		class="secondary"
-		type="button"
-		[disabled]="busy()"
-		(click)="projectAction.emit('pull')">
-		↓ Récupérer les images
-	</button>
+	<button class="secondary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('restart')">↻ Redémarrer</button>
+	<button class="secondary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('build')">⚒ Construire les images</button>
+	<button class="secondary" type="button" [disabled]="busy()" (click)="projectAction.emit('pull')">↓ Récupérer les images</button>
 	<span class="action-spacer"></span>
-	<button
-		class="open-app"
-		type="button"
-		[disabled]="!applicationUrl()"
-		(click)="openApplication.emit()">
-		Ouvrir l’application ↗
-	</button>
+	<button class="open-app" type="button" [disabled]="!applicationUrl()" (click)="openApplication.emit()">Ouvrir l’application ↗</button>
 </div>
-<app-service-selection
-	[services]="project().services"
-	[selected]="selectedServices()"
-	(toggled)="serviceToggle.emit($event)"
-	(selectAll)="selectAll.emit()"
-	(clear)="clearSelection.emit()" />
+<app-service-selection [services]="project().services" [selected]="selectedServices()" (toggled)="serviceToggle.emit($event)" (selectAll)="selectAll.emit()" (clear)="clearSelection.emit()" />
 <div class="lower-grid">
-	<app-container-list
-		[containers]="containers()"
-		[loading]="containersLoading()"
-		[busy]="busy()"
-		(action)="serviceAction.emit($event)" />
-	<app-compose-progress [projectDirectory]="project().directory" />
+	<app-container-list [containers]="containers()" [loading]="containersLoading()" [busy]="busy()" (action)="serviceAction.emit($event)" />
 	<aside class="project-info">
 		<h2>Détails du projet</h2>
 		<div class="info-row"><span>Fichiers Compose</span><strong>{{ project().composeFiles.length }}</strong></div>
@@ -83,18 +32,10 @@
 			<div>▤ <span [title]="file">{{ file }}</span></div>
 			}
 		</div>
-		<button
-			type="button"
-			class="logs-button"
-			[disabled]="loadingLogs()"
-			(click)="showLogs.emit()">
-			Consulter les logs
-		</button>
+		<button type="button" class="logs-button" [disabled]="loadingLogs()" (click)="showLogs.emit()">Consulter les logs</button>
 	</aside>
 </div>
+<app-compose-progress [projectDirectory]="project().directory" />
 @if (showingLogs()) {
-<app-logs-panel
-	[logs]="logs()"
-	[loading]="loadingLogs()"
-	(close)="closeLogs.emit()" />
+<app-logs-panel [logs]="logs()" [loading]="loadingLogs()" (close)="closeLogs.emit()" />
 }
