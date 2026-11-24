@@ -123,6 +123,9 @@ pub async fn add_registered_projects(app: AppHandle, directory: String) -> Resul
         if discovered.is_empty() {
             return Err("Aucun fichier Docker Compose reconnu dans ce dossier.".to_string());
         }
+        if discovered.len() > 1 {
+            return Err("Plusieurs projets Compose ont été détectés. Sélectionnez le dossier d'un seul projet pour l'ajouter individuellement.".to_string());
+        }
         let connection = open_database(&app)?;
         for project in &mut discovered {
             project.root_directory = root.clone();
