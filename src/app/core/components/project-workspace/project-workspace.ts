@@ -21,7 +21,6 @@ export class ProjectWorkspace {
 	readonly busy = input(false);
 	readonly applicationUrl = input<string | null>(null);
 	readonly logs = input<string | null>(null);
-	readonly showingLogs = input(false);
 	readonly loadingLogs = input(false);
 	readonly projectAction = output<ComposeAction>();
 	readonly serviceToggle = output<string>();
@@ -33,8 +32,6 @@ export class ProjectWorkspace {
 		action: "start" | "stop" | "restart";
 	}>();
 	readonly openApplication = output<void>();
-	readonly showLogs = output<void>();
-	readonly closeLogs = output<void>();
 
 	toggleComposeFile(file: string, checked: boolean): void {
 		const current = this.project().composeFiles;
