@@ -224,14 +224,15 @@ mod tests {
             ["/tmp/example"],
             |row| row.get(0),
         ).unwrap();
-        let name: String = connection.query_row(
-            "SELECT json_extract(project_json, '$.name') FROM projects WHERE directory = ?1",
+        let metadata: String = connection.query_row(
+            "SELECT project_json FROM projects WHERE directory = ?1",
             ["/tmp/example"],
             |row| row.get(0),
         ).unwrap();
+        let refreshed: ComposeProject = serde_json::from_str(&metadata).unwrap();
 
         assert_eq!(selected, "[\"worker\"]");
-        assert_eq!(name, "Updated name");
+        assert_eq!(refreshed.name, "Updated name");
     }
 
     #[test]
