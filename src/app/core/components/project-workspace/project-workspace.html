@@ -19,7 +19,7 @@
 	<button class="secondary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('build')">⚒ Construire les images</button>
 	<button class="secondary" type="button" [disabled]="busy()" (click)="projectAction.emit('pull')">↓ Récupérer les images</button>
 	<span class="action-spacer"></span>
-	<button class="open-app" type="button" [disabled]="!applicationUrl()" (click)="applicationUrl() && openApplication.emit(applicationUrl()!)">Ouvrir l’application ↗</button>
+	<button class="open-app" type="button" [disabled]="!applicationUrl()" (click)="openApp()">Ouvrir l’application ↗</button>
 </div>
 <app-service-selection [services]="project().services" [selected]="selectedServices()" [watchServices]="watchServices()" (toggled)="serviceToggle.emit($event)" (selectAll)="selectAll.emit()" (clear)="clearSelection.emit()" />
 <div class="lower-grid">
