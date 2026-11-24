@@ -9,5 +9,4 @@ import { Component, input, output } from "@angular/core";
 export class LogsPanel {
 	readonly logs = input<string | null>(null);
 	readonly loading = input(false);
-	readonly closed = output<void>();
 }
