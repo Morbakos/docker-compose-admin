@@ -1086,6 +1086,29 @@ app-root {
 .new-shell .sidebar-projects {
 	gap: 5px;
 }
+.sidebar-project-entry {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.sidebar-project-entry .sidebar-project {
+	min-width: 0;
+	flex: 1;
+}
+.remove-project {
+	width: 30px;
+	min-width: 30px;
+	border: 0;
+	border-radius: 6px;
+	color: #8d9bb0;
+	background: transparent;
+	font-size: 19px;
+	cursor: pointer;
+}
+.remove-project:hover {
+	color: #fff;
+	background: #3a2630;
+}
 .new-shell .sidebar-project {
 	min-height: 43px;
 	padding: 10px 12px;
