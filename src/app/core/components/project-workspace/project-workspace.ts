@@ -3,8 +3,7 @@ import { ServiceSelection } from "../service-selection/service-selection";
 import { ContainerList } from "../container-list/container-list";
 import { LogsPanel } from "../logs-panel/logs-panel";
 import { ComposeProject, ComposeContainer } from "@bindings";
-import { DockerService } from "@services";
-import { ComposeAction } from "@services";
+import { ComposeAction, DockerService } from "@services";
 import { ComposeProgress } from "../compose-progress/compose-progress";
 
 @Component({
@@ -65,7 +64,6 @@ export class ProjectWorkspace {
 				.finally(() => {
 					if (!cancelled) this.containersLoading.set(false);
 				});
-			onCleanup(() => { cancelled = true; });
 		});
 	}
 
@@ -76,7 +74,7 @@ export class ProjectWorkspace {
 	}
 
 	private portUrl(port: string): string | null {
-		const match = port.match(/^(?:[^:]+:)?(\\d+):(\\d+)(?:\\/(tcp|udp))?$/i);
+		const match = port.match(/^(?:[^:]+:)?(\d+):(\d+)(?:\/(tcp|udp))?$/i);
 		return match && (!match[3] || match[3].toLowerCase() === "tcp") ? "http://localhost:" + match[1] : null;
 	}
 
