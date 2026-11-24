@@ -91,10 +91,16 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
 
         project.root_directory = root_directory;
         let available_files: std::collections::BTreeSet<String> = project.available_compose_files.iter().cloned().collect();
-        let persisted_files: Vec<String> = cached_compose_files.into_iter().filter(|file| available_files.contains(file)).collect();
-        if !persisted_files.is_empty() {
-            project.compose_files = persisted_files;
+        let selection_is_valid = !cached_compose_files.is_empty()
+            && cached_compose_files.iter().all(|file| available_files.contains(file));
+        if selection_is_valid {
+            project.compose_files = cached_compose_files;
             project.services = compose_services(&project).unwrap_or_default();
+        } else {
+            // Never silently replace a user's saved Compose selection with
+            // another configuration when one of its files has disappeared.
+            project.accessible = false;
+            project.status = "configuration_changed".to_string();
         }
         let available_services = project.services.clone();
         project.selected_services = selected_services.into_iter()
