@@ -109,9 +109,10 @@ export class AppComponent {
 		try {
 			const selected = await this.docker.chooseDirectory();
 			if (!selected) return;
+			const previousDirectories = new Set(this.projects().map((project) => project.directory));
 			const projects = await this.docker.addRegisteredProjects(selected);
 			this.projects.set(projects);
-			const added = projects.find((project) => project.rootDirectory === selected && project.accessible) ?? projects.find((project) => project.accessible);
+			const added = projects.find((project) => !previousDirectories.has(project.directory) && project.accessible) ?? projects.find((project) => project.accessible);
 			if (added) this.selectProject(added.directory);
 			this.setNotice("success", "Projet(s) ajouté(s) à Compose Admin.");
 		} catch (error) {
@@ -158,7 +159,7 @@ export class AppComponent {
 		}
 	}
 	async removeProject(project: PersistedComposeProject): Promise<void> {
-		if (!window.confirm("Retirer « " + project.name + " » de Compose Admin ? Ses fichiers et son environnement Docker ne seront pas modifiés.")) return;
+		if (!window.confirm("Retirer « " + project.name + " » de Compose Admin ? Ses fichiers ne seront pas modifiés et un environnement Docker déjà lancé ne sera pas arrêté.")) return;
 		try {
 			await this.docker.removeRegisteredProject(project.directory);
 			if (this.selectedDirectory() === project.directory) {
@@ -167,7 +168,7 @@ export class AppComponent {
 				this.containers.set([]);
 			}
 			await this.refreshProjects(true);
-			this.setNotice("success", "Projet retiré de Compose Admin. Aucun fichier du projet n'a été modifié.");
+			this.setNotice("success", "Projet retiré de Compose Admin. Ses fichiers et les conteneurs existants n'ont pas été touchés.");
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		}
