@@ -1,6 +1,7 @@
 mod app_info;
 mod compose;
 mod docker;
+mod project_manager;
 
 use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
@@ -16,7 +17,11 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         compose::run_compose_service_action,
         app_info::get_build_info,
         app_info::check_for_update,
-        app_info::install_update
+        app_info::install_update,
+        project_manager::list_registered_projects,
+        project_manager::add_registered_projects,
+        project_manager::remove_registered_project,
+        project_manager::save_project_services
     ])
 }
 
