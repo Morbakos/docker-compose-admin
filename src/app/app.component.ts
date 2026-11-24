@@ -151,8 +151,13 @@ export class AppComponent {
 			if (!selected || !projects.some((project) => project.directory === selected))
 				this.selectedDirectory.set(projects[0]?.directory ?? null);
 			const chosen = projects.find((project) => project.directory === this.selectedDirectory());
-			if (chosen?.accessible) void this.refreshContainers(chosen);
-			else this.containers.set([]);
+			if (chosen?.accessible) {
+				void this.refreshContainers(chosen);
+				void this.showLogs();
+			} else {
+				this.containers.set([]);
+				this.dismissLogs();
+			}
 			if (!silent) this.clearNotice();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
@@ -212,7 +217,10 @@ export class AppComponent {
 		this.selectedDirectory.set(directory);
 		this.dismissLogs();
 		const project = this.projects().find((project) => project.directory === directory);
-		if (project) void this.refreshContainers(project);
+		if (project) {
+			void this.refreshContainers(project);
+			void this.showLogs();
+		}
 	}
 
 	async refreshContainers(project: PersistedComposeProject): Promise<void> {
@@ -316,16 +324,18 @@ export class AppComponent {
 	async showLogs(): Promise<void> {
 		const project = this.selectedProject();
 		if (!project?.accessible) return;
+		if (this.logsDirectory() === project.directory && this.logRefreshTimer !== null) return;
+		this.stopLogPolling();
 		this.loadingLogs.set(true);
 		this.logsDirectory.set(project.directory);
 		this.logs.set(null);
 		try {
-			this.logs.set(
-				(await this.docker.getLogs(project.rootDirectory, project.directory)) || "Aucun log disponible pour ce projet.",
-			);
+			const content = await this.docker.getLogs(project.rootDirectory, project.directory);
+			if (this.selectedDirectory() !== project.directory) return;
+			this.logs.set(content || "Aucun log disponible pour ce projet.");
 			this.startLogPolling(project);
 		} catch (error) {
-			this.logs.set(this.errorMessage(error));
+			if (this.selectedDirectory() === project.directory) this.logs.set(this.errorMessage(error));
 		} finally {
 			this.loadingLogs.set(false);
 		}
