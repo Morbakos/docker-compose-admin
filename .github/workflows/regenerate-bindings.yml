@@ -1,0 +1,68 @@
+name: Regenerate Tauri bindings
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/compose-dashboard-mvp
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build frontend
+        run: bun run build
+
+      - name: Create temporary bindings generator
+        run: |
+          mkdir -p src-tauri/src/bin
+          cat > src-tauri/src/bin/generate_bindings.rs <<'EOF'
+          use specta_typescript::Typescript;
+          use docker_compose_admin_lib::specta_builder;
+
+          fn main() {
+              specta_builder()
+                  .export(Typescript::default(), "../src/app/bindings.ts")
+                  .expect("failed to export Tauri bindings");
+          }
+          EOF
+
+      - name: Generate bindings
+        working-directory: src-tauri
+        run: cargo run --bin generate_bindings
+
+      - name: Commit generated bindings if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/bindings.ts
+          if git diff --cached --quiet; then
+            echo "Bindings are already up to date."
+          else
+            git commit -m "chore: regenerate Tauri bindings"
+            git push origin feat/compose-dashboard-mvp
+          fi
