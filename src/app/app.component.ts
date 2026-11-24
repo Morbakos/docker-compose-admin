@@ -35,8 +35,6 @@ export class AppComponent {
 	readonly scanning = signal(false);
 	readonly choosingDirectory = signal(false);
 	readonly busyDirectory = signal<string | null>(null);
-	readonly containers = signal<ComposeContainer[]>([]);
-	readonly containersLoading = signal(false);
 	private updateCheckTimer: number | null = null;
 	readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
 
@@ -142,12 +140,6 @@ export class AppComponent {
 			const selected = this.selectedDirectory();
 			if (!selected || !projects.some((project) => project.directory === selected))
 				this.selectedDirectory.set(projects[0]?.directory ?? null);
-			const chosen = projects.find((project) => project.directory === this.selectedDirectory());
-			if (chosen?.accessible) {
-				void this.refreshContainers(chosen);
-			} else {
-				this.containers.set([]);
-			}
 			if (!silent) this.clearNotice();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
@@ -193,7 +185,6 @@ export class AppComponent {
 			await this.docker.removeRegisteredProject(project.directory);
 			if (this.selectedDirectory() === project.directory) {
 				this.selectedDirectory.set(null);
-				this.containers.set([]);
 			}
 			await this.refreshProjects(true);
 			this.setNotice("success", "Projet retiré de Compose Admin. Ses fichiers et les conteneurs existants n'ont pas été touchés.");
@@ -206,21 +197,6 @@ export class AppComponent {
 		this.selectedDirectory.set(directory);
 		const project = this.projects().find((project) => project.directory === directory);
 		if (project) {
-			void this.refreshContainers(project);
-		}
-	}
-
-	async refreshContainers(project: PersistedComposeProject): Promise<void> {
-		if (!project.accessible) return;
-		const root = project.rootDirectory;
-		this.containersLoading.set(true);
-		try {
-			this.containers.set(await this.docker.getContainers(root, project.directory));
-		} catch (error) {
-			this.containers.set([]);
-			this.setNotice("error", this.errorMessage(error));
-		} finally {
-			this.containersLoading.set(false);
 		}
 	}
 
@@ -276,7 +252,6 @@ export class AppComponent {
 		try {
 			const result = await this.docker.runServiceAction(project.rootDirectory, project.directory, container.service, action);
 			this.setNotice("success", result || "Service " + container.service + " : " + action + " effectué.");
-			await this.refreshContainers(project);
 			await this.refreshProjects(true);
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
@@ -299,8 +274,6 @@ export class AppComponent {
 			const result = await this.docker.runAction(project.rootDirectory, project.directory, action, services);
 			this.setNotice("success", result || this.actionSuccess(action, project.name));
 			await this.refreshProjects(true);
-			const refreshed = this.selectedProject();
-			if (refreshed) await this.refreshContainers(refreshed);
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		} finally {
@@ -309,29 +282,12 @@ export class AppComponent {
 	}
 
 
-	applicationUrl(): string | null {
-		for (const container of this.containers())
-			for (const port of container.ports) {
-				const url = this.portUrl(port);
-				if (url) return url;
-			}
-		return null;
-	}
-	async openApplication(): Promise<void> {
-		const url = this.applicationUrl();
-		if (!url) {
-			this.setNotice("info", "Aucun port HTTP publié détecté pour cette application.");
-			return;
-		}
+	async openApplication(url: string): Promise<void> {
 		try {
 			await this.docker.openExternalUrl(url);
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		}
-	}
-	portUrl(port: string): string | null {
-		const match = port.match(/^(?:[^:]+:)?(\d+):(\d+)(?:\/(tcp|udp))?$/i);
-		return match && (!match[3] || match[3].toLowerCase() === "tcp") ? "http://localhost:" + match[1] : null;
 	}
 	isRunning(project: PersistedComposeProject): boolean {
 		return project.status === "running";
