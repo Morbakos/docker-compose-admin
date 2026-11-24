@@ -38,7 +38,7 @@ export class ComposeProgress implements OnDestroy {
 
 			this.docker.listenComposeOutput((output) => {
 				if (output.projectDirectory === directory && output.source === "watch") {
-					this.lines.update((current) => [...current, output]);
+					this.lines.update((current) => [...current, output].slice(-5000));
 				}
 			}).then((unlisten) => {
 				if (cancelled) unlisten();
