@@ -63,6 +63,7 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
     for row in rows {
         stored.push(row.map_err(|error| format!("Lecture d'un projet impossible : {error}"))?);
     }
+    drop(statement);
 
     let mut scans: BTreeMap<String, Result<Vec<ComposeProject>, String>> = BTreeMap::new();
     let mut result = Vec::new();
