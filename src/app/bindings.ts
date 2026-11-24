@@ -5,63 +5,89 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	pickComposeDirectory: () => __TAURI_INVOKE<string | null>("pick_compose_directory"),
-	scanComposeDirectory: (rootDirectory: string) =>
-		__TAURI_INVOKE<ComposeProject[]>("scan_compose_directory", { rootDirectory }),
-	runComposeAction: (rootDirectory: string, projectDirectory: string, action: string, services: string[]) =>
-		__TAURI_INVOKE<string>("run_compose_action", { rootDirectory, projectDirectory, action, services }),
-	getComposeLogs: (rootDirectory: string, projectDirectory: string) =>
-		__TAURI_INVOKE<string>("get_compose_logs", { rootDirectory, projectDirectory }),
+	scanComposeDirectory: (rootDirectory: string) => __TAURI_INVOKE<ComposeProject[]>("scan_compose_directory", { rootDirectory }),
+	runComposeAction: (rootDirectory: string, projectDirectory: string, action: string, services: string[]) => __TAURI_INVOKE<string>("run_compose_action", { rootDirectory, projectDirectory, action, services }),
+	getComposeLogs: (rootDirectory: string, projectDirectory: string) => __TAURI_INVOKE<string>("get_compose_logs", { rootDirectory, projectDirectory }),
 	getDockerEngineStatus: () => __TAURI_INVOKE<DockerEngineStatus_Serialize>("get_docker_engine_status"),
-	getComposeContainers: (rootDirectory: string, projectDirectory: string) =>
-		__TAURI_INVOKE<ComposeContainer_Serialize[]>("get_compose_containers", { rootDirectory, projectDirectory }),
-	runComposeServiceAction: (rootDirectory: string, projectDirectory: string, service: string, action: string) =>
-		__TAURI_INVOKE<string>("run_compose_service_action", { rootDirectory, projectDirectory, service, action }),
+	getComposeContainers: (rootDirectory: string, projectDirectory: string) => __TAURI_INVOKE<ComposeContainer_Serialize[]>("get_compose_containers", { rootDirectory, projectDirectory }),
+	runComposeServiceAction: (rootDirectory: string, projectDirectory: string, service: string, action: string) => __TAURI_INVOKE<string>("run_compose_service_action", { rootDirectory, projectDirectory, service, action }),
+	getBuildInfo: () => __TAURI_INVOKE<BuildInfo>("get_build_info"),
+	checkForUpdate: () => __TAURI_INVOKE<UpdateInfo_Serialize | null>("check_for_update"),
+	installUpdate: (expectedVersion: string) => __TAURI_INVOKE<null>("install_update", { expectedVersion }),
+	listRegisteredProjects: () => __TAURI_INVOKE<ComposeProject[]>("list_registered_projects"),
+	addRegisteredProjects: (directory: string) => __TAURI_INVOKE<ComposeProject[]>("add_registered_projects", { directory }),
+	removeRegisteredProject: (directory: string) => __TAURI_INVOKE<null>("remove_registered_project", { directory }),
+	saveProjectComposeFiles: (directory: string, files: string[]) => __TAURI_INVOKE<ComposeProject>("save_project_compose_files", { directory, files }),
+	saveProjectServices: (directory: string, services: string[]) => __TAURI_INVOKE<null>("save_project_services", { directory, services }),
 };
 
 /* Types */
+export type BuildInfo = {
+	version: string,
+	commit: string,
+	updaterEnabled: boolean,
+};
+
 export type ComposeContainer = ComposeContainer_Serialize | ComposeContainer_Deserialize;
 
 export type ComposeContainer_Deserialize = {
-	id: string;
-	name: string;
-	service: string;
-	state: string;
-	status: string;
-	ports: string[];
-	cpu?: string | null;
-	memory?: string | null;
+	id: string,
+	name: string,
+	service: string,
+	state: string,
+	status: string,
+	ports: string[],
+	cpu?: string | null,
+	memory?: string | null,
 };
 
 export type ComposeContainer_Serialize = {
-	id: string;
-	name: string;
-	service: string;
-	state: string;
-	status: string;
-	ports: string[];
-	cpu: string | null;
-	memory: string | null;
+	id: string,
+	name: string,
+	service: string,
+	state: string,
+	status: string,
+	ports: string[],
+	cpu: string | null,
+	memory: string | null,
 };
 
 export type ComposeProject = {
-	name: string;
-	directory: string;
-	relativeDirectory: string;
-	composeFiles: string[];
-	services: string[];
-	status: string;
+	name: string,
+	directory: string,
+	relativeDirectory: string,
+	composeFiles: string[],
+	availableComposeFiles: string[],
+	services: string[],
+	watchServices: string[],
+	status: string,
+	rootDirectory: string,
+	selectedServices: string[],
+	accessible: boolean,
 };
 
 export type DockerEngineStatus = DockerEngineStatus_Serialize | DockerEngineStatus_Deserialize;
 
 export type DockerEngineStatus_Deserialize = {
-	connected: boolean;
-	version?: string | null;
-	error?: string | null;
+	connected: boolean,
+	version?: string | null,
+	error?: string | null,
 };
 
 export type DockerEngineStatus_Serialize = {
-	connected: boolean;
-	version: string | null;
-	error: string | null;
+	connected: boolean,
+	version: string | null,
+	error: string | null,
+};
+
+export type UpdateInfo = UpdateInfo_Serialize | UpdateInfo_Deserialize;
+
+export type UpdateInfo_Deserialize = {
+	version: string,
+	notes?: string | null,
+};
+
+export type UpdateInfo_Serialize = {
+	version: string,
+	notes: string | null,
 };
