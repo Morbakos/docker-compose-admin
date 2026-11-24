@@ -157,6 +157,7 @@ pub struct ComposeProject {
     pub directory: String,
     pub relative_directory: String,
     pub compose_files: Vec<String>,
+    pub available_compose_files: Vec<String>,
     pub services: Vec<String>,
     pub status: String,
     pub root_directory: String,
@@ -262,43 +263,8 @@ fn compose_file_order(path: &Path) -> (u8, String) {
     (priority, name)
 }
 
-fn select_default_compose_files(mut files: Vec<PathBuf>) -> Vec<PathBuf> {
+fn sort_compose_files(files: &mut [PathBuf]) {
     files.sort_by_key(|file| compose_file_order(file));
-
-    // Mirror Docker Compose's implicit file selection: choose one canonical
-    // base file and its matching override, rather than passing every
-    // compose.*.yaml variant (dev, prod, ci...) to every command.
-    let base = files.iter().find(|file| {
-        matches!(
-            file.file_name().and_then(|name| name.to_str()),
-            Some("compose.yaml" | "compose.yml" | "docker-compose.yaml" | "docker-compose.yml")
-        )
-    });
-
-    let Some(base) = base else {
-        return files;
-    };
-
-    let base_name = base.file_name().and_then(|name| name.to_str()).unwrap_or_default();
-    let prefix = if base_name.starts_with("docker-compose") {
-        "docker-compose"
-    } else {
-        "compose"
-    };
-    let override_file = files.iter().find(|file| {
-        file.file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| {
-                name == format!("{prefix}.override.yaml")
-                    || name == format!("{prefix}.override.yml")
-            })
-    });
-
-    let mut selected = vec![base.clone()];
-    if let Some(override_file) = override_file {
-        selected.push(override_file.clone());
-    }
-    selected
 }
 
 fn declared_project_name(files: &[PathBuf]) -> Option<String> {
@@ -399,7 +365,7 @@ fn output_text(output: Output) -> String {
     }
 }
 
-fn compose_services(project: &ComposeProject) -> Result<Vec<String>, String> {
+pub(crate) fn compose_services(project: &ComposeProject) -> Result<Vec<String>, String> {
     let mut args = compose_base_args(project);
     args.extend(["config".to_string(), "--services".to_string()]);
     let output = run_docker(&args)?;
@@ -504,7 +470,8 @@ pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, Strin
     let mut projects = Vec::new();
 
     for (directory, files) in by_directory {
-        let files = select_default_compose_files(files);
+        let mut files = files;
+        sort_compose_files(&mut files);
         let directory_name = directory
             .file_name()
             .and_then(|value| value.to_str())
@@ -526,10 +493,8 @@ pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, Strin
             name,
             directory: directory.to_string_lossy().to_string(),
             relative_directory,
-            compose_files: files
-                .iter()
-                .map(|file| file.to_string_lossy().to_string())
-                .collect(),
+            compose_files: files.iter().map(|file| file.to_string_lossy().to_string()).collect(),
+            available_compose_files: files.iter().map(|file| file.to_string_lossy().to_string()).collect(),
             services: Vec::new(),
             status: "unknown".to_string(),
             root_directory: root.to_string_lossy().to_string(),
@@ -548,6 +513,7 @@ pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, Strin
 }
 
 fn resolve_project(
+    app: &tauri::AppHandle,
     root_directory: &str,
     project_directory: &str,
 ) -> Result<ComposeProject, String> {
@@ -562,14 +528,11 @@ fn resolve_project(
         return Err("Le projet sélectionné est en dehors du dossier autorisé.".to_string());
     }
 
-    scan_directory(root.to_string_lossy().as_ref())?
-        .into_iter()
-        .find(|project| {
-            PathBuf::from(&project.directory)
-                .canonicalize()
-                .is_ok_and(|path| path == selected)
-        })
-        .ok_or_else(|| "Ce projet ne contient plus de fichier Docker Compose reconnu.".to_string())
+    crate::project_manager::resolve_registered_project(
+        app,
+        root.to_string_lossy().as_ref(),
+        selected.to_string_lossy().as_ref(),
+    )
 }
 
 #[tauri::command]
@@ -603,14 +566,14 @@ pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<Compos
 #[tauri::command]
 #[specta::specta]
 pub async fn run_compose_action(
-	app: tauri::AppHandle,
+    app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
     action: String,
     services: Vec<String>,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let project = resolve_project(&root_directory, &project_directory)?;
+        let project = resolve_project(&app, &root_directory, &project_directory)?;
         let selected_services = validate_selected_services(
             &project,
             &services,
@@ -647,11 +610,12 @@ pub async fn run_compose_action(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_compose_logs(
+    app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let project = resolve_project(&root_directory, &project_directory)?;
+        let project = resolve_project(&app, &root_directory, &project_directory)?;
         let mut args = compose_base_args(&project);
         args.extend([
             "logs".to_string(),
@@ -745,10 +709,11 @@ fn container_stats() -> BTreeMap<String, (String, String)> {
 }
 
 fn container_list(
+    app: &tauri::AppHandle,
     root_directory: &str,
     project_directory: &str,
 ) -> Result<Vec<ComposeContainer>, String> {
-    let project = resolve_project(root_directory, project_directory)?;
+    let project = resolve_project(app, root_directory, project_directory)?;
     let mut args = compose_base_args(&project);
     args.extend(
         ["ps", "--all", "--format", "json"]
@@ -826,11 +791,12 @@ fn container_list(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_compose_containers(
+    app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
 ) -> Result<Vec<ComposeContainer>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        container_list(&root_directory, &project_directory)
+        container_list(&app, &root_directory, &project_directory)
     })
     .await
     .map_err(|e| format!("Récupération des containers impossible : {e}"))?
@@ -839,6 +805,7 @@ pub async fn get_compose_containers(
 #[tauri::command]
 #[specta::specta]
 pub async fn run_compose_service_action(
+    app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
     service: String,
@@ -852,7 +819,7 @@ pub async fn run_compose_service_action(
         {
             return Err("Nom de service invalide.".to_string());
         }
-        let project = resolve_project(&root_directory, &project_directory)?;
+        let project = resolve_project(&app, &root_directory, &project_directory)?;
         let verb = match action.as_str() {
             "start" => "start",
             "stop" => "stop",
