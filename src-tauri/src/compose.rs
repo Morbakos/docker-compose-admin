@@ -13,18 +13,33 @@ use std::{
 use tauri::Emitter;
 
 static WATCH_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
+static LOG_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ComposeOutput {
     project_directory: String,
     stream: String,
+    source: String,
     line: String,
     timestamp: u128,
 }
 
 fn watch_processes() -> &'static Mutex<BTreeMap<String, Child>> {
     WATCH_PROCESSES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn log_processes() -> &'static Mutex<BTreeMap<String, Child>> {
+    LOG_PROCESSES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn stop_log_process(directory: &str) {
+    if let Ok(mut processes) = log_processes().lock() {
+        if let Some(mut child) = processes.remove(directory) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
 }
 
 fn stop_watch_process(directory: &str) {
@@ -100,11 +115,11 @@ fn start_watch_process(
 	// Lecture de stdout et stderr
 	// Et "forward" de ces logs vers le front
     if let Some(stdout) = stdout {
-        forward_compose_output(stdout, app.clone(), project_directory.clone(), "stdout");
+        forward_compose_output(stdout, app.clone(), project_directory.clone(), "watch", "stdout");
     }
     
 	if let Some(stderr) = stderr {
-        forward_compose_output(stderr, app.clone(), project_directory.clone(), "stderr");
+        forward_compose_output(stderr, app.clone(), project_directory.clone(), "watch", "stderr");
     }
 
     watch_processes()
@@ -118,6 +133,7 @@ fn forward_compose_output<R: std::io::Read + Send + 'static>(
     reader: R,
     app: tauri::AppHandle,
     project_directory: String,
+    source: &'static str,
     stream: &'static str,
 ) {
     thread::spawn(move || {
@@ -135,7 +151,8 @@ fn forward_compose_output<R: std::io::Read + Send + 'static>(
             let output = ComposeOutput {
                 project_directory: project_directory.clone(),
                 stream: stream.to_string(),
-                line: line,
+                source: source.to_string(),
+                line,
                 timestamp,
             };
 
@@ -634,25 +651,35 @@ pub async fn run_compose_action(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_compose_logs(
-    app: tauri::AppHandle,
-    root_directory: String,
-    project_directory: String,
-) -> Result<String, String> {
+pub async fn start_compose_logs(app: tauri::AppHandle, root_directory: String, project_directory: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&app, &root_directory, &project_directory)?;
+        stop_log_process(&project.directory);
         let mut args = compose_base_args(&project);
-        args.extend([
-            "logs".to_string(),
-            "--tail".to_string(),
-            "250".to_string(),
-            "--no-color".to_string(),
-            "--timestamps".to_string(),
-        ]);
-        run_docker(&args).map(output_text)
-    })
-    .await
-    .map_err(|error| format!("La récupération des logs a échoué : {error}"))?
+        args.extend(["logs".to_string(), "--follow".to_string(), "--tail".to_string(), "250".to_string(), "--no-color".to_string(), "--timestamps".to_string()]);
+        let mut child = Command::new("docker").args(&args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "Docker CLI introuvable. Vérifiez que Docker est installé et accessible depuis le PATH.".to_string()
+            } else { format!("Impossible de démarrer le flux des logs : {error}") }
+        })?;
+        let stdout = child.stdout.take();
+        let stderr = child.stderr.take();
+        let directory = project.directory.clone();
+        if let Some(stdout) = stdout { forward_compose_output(stdout, app.clone(), directory.clone(), "container", "stdout"); }
+        if let Some(stderr) = stderr { forward_compose_output(stderr, app.clone(), directory.clone(), "container", "stderr"); }
+        log_processes().lock().map_err(|_| "Gestionnaire des flux de logs indisponible.".to_string())?.insert(directory, child);
+        Ok(())
+    }).await.map_err(|error| format!("Démarrage du flux des logs impossible : {error}"))?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn stop_compose_logs(app: tauri::AppHandle, root_directory: String, project_directory: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let project = resolve_project(&app, &root_directory, &project_directory)?;
+        stop_log_process(&project.directory);
+        Ok(())
+    }).await.map_err(|error| format!("Arrêt du flux des logs impossible : {error}"))?
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
