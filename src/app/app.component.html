@@ -13,18 +13,22 @@
 		</div>
 		<div class="sidebar-projects">
 			@for (project of projects(); track project.directory) {
-				<button
-					class="sidebar-project"
-					[class.current]="selectedProject()?.directory === project.directory"
-					type="button"
-					(click)="selectProject(project.directory)">
-					<span
-						class="mini-status"
-						[class.is-running]="isRunning(project)"></span
-					><span>{{ project.name }}</span>
-				</button>
+				<div class="sidebar-project-entry">
+					<button
+						class="sidebar-project"
+						[class.current]="selectedProject()?.directory === project.directory"
+						type="button"
+						(click)="selectProject(project.directory)">
+						<span class="mini-status" [class.is-running]="isRunning(project)"></span>
+						<span>{{ project.name }}</span>
+						@if (!project.accessible) { <span title="Dossier introuvable">⚠</span> }
+					</button>
+					<button class="remove-project" type="button" title="Retirer de Compose Admin"
+						[attr.aria-label]="'Retirer ' + project.name + ' de Compose Admin'"
+						(click)="removeProject(project)">×</button>
+				</div>
 			} @empty {
-				<p class="sidebar-empty">Aucun projet détecté</p>
+				<p class="sidebar-empty">Aucun projet enregistré</p>
 			}
 		</div>
 		<button
@@ -32,7 +36,7 @@
 			type="button"
 			(click)="chooseDirectory()"
 			[disabled]="choosingDirectory()">
-			＋ {{ rootDirectory() ? "Changer de dossier" : "Ajouter un projet" }}
+			＋ Ajouter un projet
 		</button>
 		<div class="sidebar-footer">
 			<span
@@ -76,7 +80,7 @@
 					class="refresh-button"
 					type="button"
 					(click)="refreshProjects()"
-					[disabled]="scanning() || !rootDirectory()">
+					[disabled]="scanning()">
 					↻ Actualiser
 				</button>
 			</div>
@@ -99,6 +103,7 @@
 				</div>
 			}
 			@if (selectedProject(); as project) {
+				@if (project.accessible) {
 				<app-project-workspace
 					[project]="project"
 					[containers]="containers()"
@@ -117,6 +122,14 @@
 					(openApplication)="openApplication()"
 					(showLogs)="showLogs()"
 					(closeLogs)="dismissLogs()" />
+				} @else {
+					<div class="welcome-state">
+						<div class="welcome-icon">⚠</div>
+						<h1>Projet inaccessible</h1>
+						<p>Le dossier « {{ project.directory }} » est introuvable ou ne contient plus de configuration Compose reconnue.</p>
+						<button class="welcome-button" type="button" (click)="removeProject(project)">Retirer de Compose Admin</button>
+					</div>
+				}
 			} @else if (scanning()) {
 				<div class="welcome-state">
 					<div class="welcome-icon">◌</div>
