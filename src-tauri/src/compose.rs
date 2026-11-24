@@ -259,6 +259,45 @@ fn compose_file_order(path: &Path) -> (u8, String) {
     (priority, name)
 }
 
+fn select_default_compose_files(mut files: Vec<PathBuf>) -> Vec<PathBuf> {
+    files.sort_by_key(|file| compose_file_order(file));
+
+    // Mirror Docker Compose's implicit file selection: choose one canonical
+    // base file and its matching override, rather than passing every
+    // compose.*.yaml variant (dev, prod, ci...) to every command.
+    let base = files.iter().find(|file| {
+        matches!(
+            file.file_name().and_then(|name| name.to_str()),
+            Some("compose.yaml" | "compose.yml" | "docker-compose.yaml" | "docker-compose.yml")
+        )
+    });
+
+    let Some(base) = base else {
+        return files;
+    };
+
+    let base_name = base.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+    let prefix = if base_name.starts_with("docker-compose") {
+        "docker-compose"
+    } else {
+        "compose"
+    };
+    let override_file = files.iter().find(|file| {
+        file.file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                name == format!("{prefix}.override.yaml")
+                    || name == format!("{prefix}.override.yml")
+            })
+    });
+
+    let mut selected = vec![base.clone()];
+    if let Some(override_file) = override_file {
+        selected.push(override_file.clone());
+    }
+    selected
+}
+
 fn declared_project_name(files: &[PathBuf]) -> Option<String> {
     let first_file = files.first()?;
     let contents = fs::read_to_string(first_file).ok()?;
@@ -461,8 +500,8 @@ fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
 
     let mut projects = Vec::new();
 
-    for (directory, mut files) in by_directory {
-        files.sort_by_key(|file| compose_file_order(file));
+    for (directory, files) in by_directory {
+        let files = select_default_compose_files(files);
         let directory_name = directory
             .file_name()
             .and_then(|value| value.to_str())
