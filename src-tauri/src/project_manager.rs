@@ -170,10 +170,10 @@ pub(crate) fn resolve_registered_project(
     project_directory: &str,
 ) -> Result<ComposeProject, String> {
     let connection = open_database(app)?;
-    let (stored_root, project_json): (String, String) = connection.query_row(
-        "SELECT root_directory, project_json FROM projects WHERE directory = ?1",
+    let (stored_root, project_json, selected_services_json): (String, String, String) = connection.query_row(
+        "SELECT root_directory, project_json, selected_services_json FROM projects WHERE directory = ?1",
         params![project_directory],
-        |row| Ok((row.get(0)?, row.get(1)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     ).map_err(|_| "Projet non enregistré dans Compose Admin.".to_string())?;
     if stored_root != root_directory {
         return Err("Le dossier racine ne correspond pas au projet enregistré.".to_string());
@@ -191,7 +191,8 @@ pub(crate) fn resolve_registered_project(
     project.compose_files = cached.compose_files;
     project.services = compose_services(&project)?;
     project.watch_services = compose_watch_services(&project)?;
-    project.selected_services = cached.selected_services.into_iter()
+    let selected_services: Vec<String> = serde_json::from_str(&selected_services_json).unwrap_or_default();
+    project.selected_services = selected_services.into_iter()
         .filter(|service| project.services.contains(service))
         .collect();
     Ok(project)
@@ -206,13 +207,14 @@ pub async fn save_project_compose_files(
 ) -> Result<ComposeProject, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let connection = open_database(&app)?;
-        let json: String = connection.query_row(
-            "SELECT project_json FROM projects WHERE directory = ?1",
+        let (json, selected_json): (String, String) = connection.query_row(
+            "SELECT project_json, selected_services_json FROM projects WHERE directory = ?1",
             params![directory],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         ).map_err(|_| "Projet enregistré introuvable.".to_string())?;
         let mut project: ComposeProject = serde_json::from_str(&json)
             .map_err(|error| format!("Métadonnées du projet invalides : {error}"))?;
+        project.selected_services = serde_json::from_str(&selected_json).unwrap_or_default();
         if files.is_empty() {
             return Err("Sélectionnez au moins un fichier Compose.".to_string());
         }
