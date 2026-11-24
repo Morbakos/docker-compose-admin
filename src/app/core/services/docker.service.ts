@@ -89,10 +89,10 @@ export class DockerService {
 		return openUrl(url);
 	}
 	startComposeLogs(rootDirectory: string, projectDirectory: string): Promise<void> {
-		return invoke("start_compose_logs", { rootDirectory, projectDirectory });
+		return invoke<void>("start_compose_logs", { rootDirectory, projectDirectory });
 	}
 	stopComposeLogs(projectDirectory: string): Promise<void> {
-		return invoke("stop_compose_logs", { projectDirectory });
+		return invoke<void>("stop_compose_logs", { projectDirectory });
 	}
 
 	listenComposeOutput(callback: (output: ComposeOutput) => void): Promise<UnlistenFn> {
