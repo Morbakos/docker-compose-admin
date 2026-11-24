@@ -1,6 +1,9 @@
-<section class="compose-progress">
+<section class="compose-progress" [class.is-fullscreen]="fullscreen()">
 	<header>
 		<div><strong>Activité au démarrage</strong><span>{{lines().length}} lignes</span></div>
+		<button type="button" class="fullscreen-button" (click)="toggleFullscreen()" [attr.aria-label]="fullscreen() ? 'Quitter le plein écran' : 'Afficher en plein écran'">
+			{{ fullscreen() ? '↙ Réduire' : '⛶ Plein écran' }}
+		</button>
 	</header>
 
 	<div class="console">
