@@ -17,7 +17,7 @@ Tauri verifies every update bundle with a public key embedded in the application
 Generate one key pair on a trusted workstation:
 
 ```bash
-bun tauri signer generate -- -w ~/.tauri/compose-admin.key
+bun run tauri signer generate -- -w ~/.tauri/compose-admin.key
 ```
 
 Keep the generated private key safe and backed up. Losing it means existing installations can no longer verify future updates signed with that key.
