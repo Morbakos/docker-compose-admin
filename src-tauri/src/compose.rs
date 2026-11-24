@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -150,7 +150,7 @@ fn forward_compose_output<R: std::io::Read + Send + 'static>(
 const MAX_SCAN_DEPTH: usize = 16;
 const MAX_COMPOSE_FILES: usize = 500;
 
-#[derive(Debug, Clone, Serialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeProject {
     pub name: String,
@@ -159,6 +159,9 @@ pub struct ComposeProject {
     pub compose_files: Vec<String>,
     pub services: Vec<String>,
     pub status: String,
+    pub root_directory: String,
+    pub selected_services: Vec<String>,
+    pub accessible: bool,
 }
 
 fn is_compose_file_name(file_name: &str) -> bool {
@@ -476,7 +479,7 @@ fn project_status(project: &ComposeProject) -> String {
     }
 }
 
-fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
+pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
     let root = PathBuf::from(root_directory)
         .canonicalize()
         .map_err(|error| format!("Dossier inaccessible : {error}"))?;
@@ -529,9 +532,13 @@ fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
                 .collect(),
             services: Vec::new(),
             status: "unknown".to_string(),
+            root_directory: root.to_string_lossy().to_string(),
+            selected_services: Vec::new(),
+            accessible: true,
         };
 
         project.services = compose_services(&project).unwrap_or_default();
+        project.selected_services = project.services.clone();
         project.status = project_status(&project);
         projects.push(project);
     }
