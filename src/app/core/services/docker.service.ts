@@ -1,4 +1,5 @@
 import { Injectable } from "@angular/core";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { commands, type ComposeContainer, type ComposeProject, type DockerEngineStatus } from "@bindings";
@@ -8,6 +9,15 @@ export type DockerEngineStatusWithChecking = DockerEngineStatus & {
 	checking?: boolean;
 };
 export type ComposeAction = "start" | "stop" | "restart" | "pull" | "build";
+export interface BuildInfo {
+	version: string;
+	commit: string;
+	updaterEnabled: boolean;
+}
+export interface UpdateInfo {
+	version: string;
+	notes: string | null;
+}
 export interface ComposeOutput {
 	projectDirectory: string;
 	stream: "stdout" | "stderr";
@@ -17,6 +27,15 @@ export interface ComposeOutput {
 
 @Injectable({ providedIn: "root" })
 export class DockerService {
+	getBuildInfo(): Promise<BuildInfo> {
+		return invoke("get_build_info");
+	}
+	checkForUpdate(): Promise<UpdateInfo | null> {
+		return invoke("check_for_update");
+	}
+	installUpdate(version: string): Promise<void> {
+		return invoke("install_update", { expectedVersion: version });
+	}
 	getEngineStatus(): Promise<DockerEngineStatusWithChecking> {
 		return commands.getDockerEngineStatus();
 	}
