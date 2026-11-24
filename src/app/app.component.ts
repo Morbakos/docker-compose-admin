@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, inject, signal } from "@angular/core";
+import { Component, DestroyRef, inject, signal } from "@angular/core";
 import {
 	BuildInfo,
 	UpdateInfo,
@@ -23,7 +23,6 @@ export class AppComponent {
 	private readonly docker = inject(DockerService);
 	private readonly registry = inject(ProjectRegistryService);
 	readonly projects = this.registry.projects;
-	readonly selectedDirectory = this.registry.selectedDirectory;
 	readonly scanning = this.registry.scanning;
 	readonly selectedProject = this.registry.selectedProject;
 	readonly selectedServices = this.registry.selectedServices;
