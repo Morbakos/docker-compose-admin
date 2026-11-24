@@ -21,6 +21,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         project_manager::list_registered_projects,
         project_manager::add_registered_projects,
         project_manager::remove_registered_project,
+        project_manager::save_project_compose_files,
         project_manager::save_project_services
     ])
 }
