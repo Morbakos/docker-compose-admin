@@ -7,6 +7,7 @@ import {
 	ComposeProject,
 	DockerEngineStatusWithChecking,
 	DockerService,
+	PersistedComposeProject,
 } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 
@@ -30,8 +31,7 @@ export class AppComponent {
 		error: null,
 		checking: true,
 	});
-	readonly rootDirectory = signal<string | null>(null);
-	readonly projects = signal<ComposeProject[]>([]);
+	readonly projects = signal<PersistedComposeProject[]>([]);
 	readonly selectedDirectory = signal<string | null>(null);
 	readonly scanning = signal(false);
 	readonly choosingDirectory = signal(false);
@@ -41,7 +41,6 @@ export class AppComponent {
 	readonly logsDirectory = signal<string | null>(null);
 	readonly containers = signal<ComposeContainer[]>([]);
 	readonly containersLoading = signal(false);
-	readonly serviceSelections = signal<Record<string, string[]>>({});
 	private logRefreshTimer: number | null = null;
 	private updateCheckTimer: number | null = null;
 	private logRequestActive = false;
@@ -50,23 +49,12 @@ export class AppComponent {
 	readonly selectedProject = computed(
 		() => this.projects().find((project) => project.directory === this.selectedDirectory()) ?? null,
 	);
-	readonly selectedServices = computed(() => {
-		const project = this.selectedProject();
-		return project ? (this.serviceSelections()[project.directory] ?? project.services) : [];
-	});
+	readonly selectedServices = computed(() => this.selectedProject()?.selectedServices ?? []);
 
 	constructor() {
-		const savedSelections = localStorage.getItem("compose-admin.service-selections");
-		if (savedSelections) {
-			try {
-				this.serviceSelections.set(JSON.parse(savedSelections) as Record<string, string[]>);
-			} catch {
-				localStorage.removeItem("compose-admin.service-selections");
-			}
-		}
 		const refreshTimer = window.setInterval(() => {
 			void this.refreshDockerStatus();
-			if (this.dockerEngine().connected && this.rootDirectory() && !this.scanning())
+			if (this.dockerEngine().connected && !this.scanning())
 				void this.refreshProjects(true);
 		}, 15000);
 		inject(DestroyRef).onDestroy(() => {
@@ -77,11 +65,7 @@ export class AppComponent {
 		void this.loadBuildInfo();
 		this.updateCheckTimer = window.setInterval(() => void this.checkForUpdates(), 6 * 60 * 60 * 1000);
 		void this.refreshDockerStatus();
-		const savedDirectory = localStorage.getItem("compose-admin.root-directory");
-		if (savedDirectory) {
-			this.rootDirectory.set(savedDirectory);
-			void this.refreshProjects();
-		}
+		void this.refreshProjects();
 
 		this.docker.listenComposeOutput((output) => console.log(output));
 	}
@@ -126,11 +110,11 @@ export class AppComponent {
 		try {
 			const selected = await this.docker.chooseDirectory();
 			if (!selected) return;
-			this.rootDirectory.set(selected);
-			localStorage.setItem("compose-admin.root-directory", selected);
-			this.selectedDirectory.set(null);
-			this.dismissLogs();
-			await this.refreshProjects(true);
+			const projects = await this.docker.addRegisteredProjects(selected);
+			this.projects.set(projects);
+			const added = projects.find((project) => project.rootDirectory === selected && project.accessible);
+			if (added) this.selectProject(added.directory);
+			this.setNotice("success", "Projet(s) ajouté(s) à Compose Admin.");
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		} finally {
@@ -157,34 +141,36 @@ export class AppComponent {
 
 	async refreshProjects(silent = false): Promise<void> {
 		if (this.scanning()) return;
-		const root = this.rootDirectory();
-		if (!root) return;
 		this.scanning.set(true);
 		try {
-			const projects = await this.docker.scanDirectory(root);
+			const projects = await this.docker.listRegisteredProjects();
 			this.projects.set(projects);
-			const previousSelections = this.serviceSelections();
-			const nextSelections: Record<string, string[]> = {};
-			for (const project of projects) {
-				const previous = previousSelections[project.directory];
-				nextSelections[project.directory] =
-					previous === undefined
-						? [...project.services]
-						: previous.filter((service) => project.services.includes(service));
-			}
-			this.serviceSelections.set(nextSelections);
-			this.persistServiceSelections();
 			const selected = this.selectedDirectory();
 			if (!selected || !projects.some((project) => project.directory === selected))
 				this.selectedDirectory.set(projects[0]?.directory ?? null);
 			const chosen = projects.find((project) => project.directory === this.selectedDirectory());
-			if (chosen) void this.refreshContainers(chosen);
+			if (chosen?.accessible) void this.refreshContainers(chosen);
 			else this.containers.set([]);
 			if (!silent) this.clearNotice();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		} finally {
 			this.scanning.set(false);
+		}
+	}
+	async removeProject(project: PersistedComposeProject): Promise<void> {
+		if (!window.confirm("Retirer « " + project.name + " » de Compose Admin ? Ses fichiers et son environnement Docker ne seront pas modifiés.")) return;
+		try {
+			await this.docker.removeRegisteredProject(project.directory);
+			if (this.selectedDirectory() === project.directory) {
+				this.selectedDirectory.set(null);
+				this.dismissLogs();
+				this.containers.set([]);
+			}
+			await this.refreshProjects(true);
+			this.setNotice("success", "Projet retiré de Compose Admin. Aucun fichier du projet n'a été modifié.");
+		} catch (error) {
+			this.setNotice("error", this.errorMessage(error));
 		}
 	}
 
@@ -195,9 +181,9 @@ export class AppComponent {
 		if (project) void this.refreshContainers(project);
 	}
 
-	async refreshContainers(project: ComposeProject): Promise<void> {
-		const root = this.rootDirectory();
-		if (!root) return;
+	async refreshContainers(project: PersistedComposeProject): Promise<void> {
+		if (!project.accessible) return;
+		const root = project.rootDirectory;
 		this.containersLoading.set(true);
 		try {
 			this.containers.set(await this.docker.getContainers(root, project.directory));
@@ -209,47 +195,39 @@ export class AppComponent {
 		}
 	}
 
-	toggleService(service: string): void {
+	async toggleService(service: string): Promise<void> {
 		const project = this.selectedProject();
-		if (!project) return;
+		if (!project || !project.accessible) return;
 		const current = this.selectedServices();
 		const next = current.includes(service) ? current.filter((item) => item !== service) : [...current, service];
-		this.serviceSelections.update((selections) => ({
-			...selections,
-			[project.directory]: next,
-		}));
-		this.persistServiceSelections();
+		await this.saveSelectedServices(project, next);
 	}
-	selectAllServices(): void {
+	async selectAllServices(): Promise<void> {
 		const project = this.selectedProject();
-		if (!project) return;
-		this.serviceSelections.update((selections) => ({
-			...selections,
-			[project.directory]: [...project.services],
-		}));
-		this.persistServiceSelections();
+		if (project) await this.saveSelectedServices(project, [...project.services]);
 	}
-	clearSelectedServices(): void {
+	async clearSelectedServices(): Promise<void> {
 		const project = this.selectedProject();
-		if (!project) return;
-		this.serviceSelections.update((selections) => ({
-			...selections,
-			[project.directory]: [],
-		}));
-		this.persistServiceSelections();
+		if (project) await this.saveSelectedServices(project, []);
 	}
-	private persistServiceSelections(): void {
-		localStorage.setItem("compose-admin.service-selections", JSON.stringify(this.serviceSelections()));
+	private async saveSelectedServices(project: PersistedComposeProject, services: string[]): Promise<void> {
+		try {
+			await this.docker.saveProjectServices(project.directory, services);
+			this.projects.update((projects) => projects.map((item) =>
+				item.directory === project.directory ? { ...item, selectedServices: services } : item
+			));
+		} catch (error) {
+			this.setNotice("error", this.errorMessage(error));
+		}
 	}
 
 	async runServiceAction(container: ComposeContainer, action: "start" | "stop" | "restart"): Promise<void> {
-		const root = this.rootDirectory(),
-			project = this.selectedProject();
-		if (!root || !project || this.busyDirectory()) return;
+		const project = this.selectedProject();
+		if (!project?.accessible || this.busyDirectory()) return;
 		this.busyDirectory.set(project.directory);
 		this.setNotice("info", action + " service " + container.service + "…");
 		try {
-			const result = await this.docker.runServiceAction(root, project.directory, container.service, action);
+			const result = await this.docker.runServiceAction(project.rootDirectory, project.directory, container.service, action);
 			this.setNotice("success", result || "Service " + container.service + " : " + action + " effectué.");
 			await this.refreshContainers(project);
 			await this.refreshProjects(true);
@@ -272,7 +250,7 @@ export class AppComponent {
 		this.busyDirectory.set(project.directory);
 		this.setNotice("info", this.actionProgress(action, project.name));
 		try {
-			const result = await this.docker.runAction(root, project.directory, action, services);
+			const result = await this.docker.runAction(project.rootDirectory, project.directory, action, services);
 			this.setNotice("success", result || this.actionSuccess(action, project.name));
 			await this.refreshProjects(true);
 			const refreshed = this.selectedProject();
@@ -285,15 +263,14 @@ export class AppComponent {
 	}
 
 	async showLogs(): Promise<void> {
-		const root = this.rootDirectory(),
-			project = this.selectedProject();
-		if (!root || !project) return;
+		const project = this.selectedProject();
+		if (!project?.accessible) return;
 		this.loadingLogs.set(true);
 		this.logsDirectory.set(project.directory);
 		this.logs.set(null);
 		try {
 			this.logs.set(
-				(await this.docker.getLogs(root, project.directory)) || "Aucun log disponible pour ce projet.",
+				(await this.docker.getLogs(project.rootDirectory, project.directory)) || "Aucun log disponible pour ce projet.",
 			);
 			this.startLogPolling(project);
 		} catch (error) {
@@ -307,7 +284,7 @@ export class AppComponent {
 		this.logs.set(null);
 		this.logsDirectory.set(null);
 	}
-	private startLogPolling(project: ComposeProject): void {
+	private startLogPolling(project: PersistedComposeProject): void {
 		this.stopLogPolling();
 		this.logRefreshTimer = window.setInterval(() => void this.pollLogs(project), 3000);
 	}
@@ -316,9 +293,8 @@ export class AppComponent {
 		this.logRefreshTimer = null;
 		this.logRequestActive = false;
 	}
-	private async pollLogs(project: ComposeProject): Promise<void> {
-		const root = this.rootDirectory();
-		if (!root || this.logRequestActive || this.logsDirectory() !== project.directory) return;
+	private async pollLogs(project: PersistedComposeProject): Promise<void> {
+		if (!project.accessible || this.logRequestActive || this.logsDirectory() !== project.directory) return;
 		this.logRequestActive = true;
 		try {
 			this.logs.set(
@@ -355,11 +331,11 @@ export class AppComponent {
 		const match = port.match(/^(?:[^:]+:)?(\d+):(\d+)(?:\/(tcp|udp))?$/i);
 		return match && (!match[3] || match[3].toLowerCase() === "tcp") ? "http://localhost:" + match[1] : null;
 	}
-	isRunning(project: ComposeProject): boolean {
+	isRunning(project: PersistedComposeProject): boolean {
 		return project.status === "running";
 	}
-	statusLabel(project: ComposeProject): string {
-		return project.status === "running" ? "En cours" : project.status === "stopped" ? "Arrêté" : "Non vérifié";
+	statusLabel(project: PersistedComposeProject): string {
+		return !project.accessible ? "Dossier introuvable" : project.status === "running" ? "En cours" : project.status === "stopped" ? "Arrêté" : "Non vérifié";
 	}
 	setNotice(kind: NoticeKind, text: string): void {
 		this.notice.set({ kind, text });
