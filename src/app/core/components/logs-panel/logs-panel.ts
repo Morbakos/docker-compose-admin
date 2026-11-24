@@ -52,10 +52,10 @@ export class LogsPanel {
 					started = true;
 					if (cancelled) await this.docker.stopComposeLogs(rootDirectory, projectDirectory);
 				} catch (error) {
-					this.error.set(error instanceof Error ? error.message : String(error));
+					if (!cancelled) this.error.set(error instanceof Error ? error.message : String(error));
 				}
 			}).catch((error: unknown) => {
-				this.error.set(error instanceof Error ? error.message : String(error));
+				if (!cancelled) this.error.set(error instanceof Error ? error.message : String(error));
 			});
 
 			onCleanup(() => {
