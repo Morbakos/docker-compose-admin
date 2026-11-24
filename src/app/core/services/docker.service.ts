@@ -53,6 +53,9 @@ export class DockerService {
 	removeRegisteredProject(directory: string): Promise<void> {
 		return invoke<void>("remove_registered_project", { directory });
 	}
+	saveProjectComposeFiles(directory: string, files: string[]): Promise<ComposeProject> {
+		return commands.saveProjectComposeFiles(directory, files);
+	}
 	saveProjectServices(directory: string, services: string[]): Promise<void> {
 		return invoke<void>("save_project_services", { directory, services });
 	}
