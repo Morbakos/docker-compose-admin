@@ -1236,3 +1236,44 @@ app-root {
 		font-size: 27px;
 	}
 }
+
+.app-build-info {
+	display: grid;
+	gap: 5px;
+	margin-top: 14px;
+	padding: 12px 5px 0;
+	border-top: 1px solid #2b3547;
+}
+.app-build-info strong {
+	color: #dce3ef;
+	font-size: 11px;
+	font-weight: 700;
+}
+.app-build-info > span {
+	color: #8693a8;
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+}
+.app-build-info button {
+	min-height: 30px;
+	margin-top: 4px;
+	padding: 5px 8px;
+	border: 1px solid #405777;
+	border-radius: 6px;
+	color: #dbe8ff;
+	background: #263b5c;
+	font: inherit;
+	font-size: 10px;
+	font-weight: 650;
+	text-align: left;
+	cursor: pointer;
+}
+.app-build-info button:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
+.update-available {
+	color: #8ed8b3;
+	font-size: 10px;
+	font-weight: 700;
+}
