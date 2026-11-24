@@ -77,6 +77,17 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Inject updater public key into Tauri configuration
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'src-tauri/tauri.conf.json';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.plugins.updater.pubkey = process.env.TAURI_UPDATER_PUBLIC_KEY;
+          fs.writeFileSync(path, JSON.stringify(config, null, 2) + '\\n');
+          NODE
+
       - name: Build and publish Tauri release
         uses: tauri-apps/tauri-action@v1
         env:
