@@ -1,39 +1,68 @@
-name: Release desktop installers
+name: Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
-    name: Release build (${{ matrix.platform }})
+  publish:
+    name: Publish (${{ matrix.platform }} ${{ matrix.architecture }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-latest
-            os: linux
           - platform: windows-latest
-            os: windows
+            architecture: x64
+            rust_target: ""
+            args: ""
           - platform: macos-latest
-            os: macos
+            architecture: x64
+            rust_target: x86_64-apple-darwin
+            args: "--target x86_64-apple-darwin"
+          - platform: macos-latest
+            architecture: arm64
+            rust_target: aarch64-apple-darwin
+            args: "--target aarch64-apple-darwin"
+
     runs-on: ${{ matrix.platform }}
+    env:
+      GIT_COMMIT: ${{ github.sha }}
+      TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Linux system dependencies
-        if: matrix.os == 'linux'
+      - name: Validate version and updater signing
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential curl file libssl-dev libwebkit2gtk-4.1-dev \
-            libxdo-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          NPM_VERSION="$(node -p "require('./package.json').version")"
+          CARGO_VERSION="$(sed -n 's/^version = "\([^"]*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)"
+          if [ "${GITHUB_REF_NAME}" != "v${TAURI_VERSION}" ] || [ "${NPM_VERSION}" != "${TAURI_VERSION}" ] || [ "${CARGO_VERSION}" != "${TAURI_VERSION}" ]; then
+            echo "Release tag and versions in tauri.conf.json, package.json and Cargo.toml must match."
+            exit 1
+          fi
+          test -n "${TAURI_UPDATER_PUBLIC_KEY}" || (echo "Missing repository variable TAURI_UPDATER_PUBLIC_KEY." && exit 1)
+          test -n "${TAURI_SIGNING_PRIVATE_KEY}" || (echo "Missing secret TAURI_SIGNING_PRIVATE_KEY." && exit 1)
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -42,34 +71,38 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build installers
-        run: bun run tauri build
-
-      - name: Upload release build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Build and publish Tauri release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_COMMIT: ${{ github.sha }}
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
-          name: release-${{ matrix.os }}
-          path: src-tauri/target/release/bundle/**
-          if-no-files-found: error
-          retention-days: 3
+          tagName: ${{ github.ref_name }}
+          releaseName: Compose Admin ${{ github.ref_name }}
+          releaseBody: |
+            Compose Admin ${{ github.ref_name }}
 
-  publish:
-    name: Publish GitHub Release
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all platform artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-assets
-          merge-multiple: false
-
-      - name: Create release and attach installers
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          files: release-assets/**/*
+            Install the package for your operating system. Existing installations can update from within the application.
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          uploadUpdaterJson: true
+          args: >-
+            ${{ matrix.args }}
+            --config '{"bundle":{"createUpdaterArtifacts":true}}'
