@@ -77,6 +77,11 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Run release preflight checks
+        run: |
+          bun run build
+          cargo test --manifest-path src-tauri/Cargo.toml --lib
+
       - name: Inject updater public key into Tauri configuration
         shell: bash
         run: |
