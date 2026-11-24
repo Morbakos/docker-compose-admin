@@ -50,6 +50,20 @@
 				}}</span>
 			</div>
 		</div>
+		<div class="app-build-info">
+			<strong>Compose Admin</strong>
+			<span>v{{ buildInfo().version }} · {{ buildInfo().commit }}</span>
+			@if (availableUpdate(); as update) {
+				<div class="update-available">Version {{ update.version }} disponible</div>
+				<button type="button" (click)="installUpdate()" [disabled]="installingUpdate()">
+					{{ installingUpdate() ? "Installation…" : "Installer la mise à jour" }}
+				</button>
+			} @else if (buildInfo().updaterEnabled) {
+				<button type="button" (click)="checkForUpdates()" [disabled]="checkingForUpdates()">
+					{{ checkingForUpdates() ? "Vérification…" : "Vérifier les mises à jour" }}
+				</button>
+			}
+		</div>
 	</aside>
 	<main class="main-shell new-main">
 		<header class="topbar">
