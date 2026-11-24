@@ -114,7 +114,7 @@ h1 {
 }
 .lower-grid {
 	display: grid;
-	grid-template-columns: minmax(0, 1.7fr) minmax(230px, 0.8fr);
+	grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.15fr) minmax(220px, 0.75fr);
 	gap: 18px;
 	align-items: start;
 }
@@ -160,9 +160,20 @@ h1 {
 	color: #4e6c9f;
 	background: #f8faff;
 }
-@media (max-width: 850px) {
+@media (max-width: 1180px) {
+	.lower-grid {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	}
+	.project-info {
+		grid-column: 1 / -1;
+	}
+}
+@media (max-width: 760px) {
 	.lower-grid {
 		grid-template-columns: 1fr;
+	}
+	.project-info {
+		grid-column: auto;
 	}
 }
 @media (max-width: 600px) {
