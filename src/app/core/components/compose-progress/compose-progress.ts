@@ -1,5 +1,5 @@
 import { DatePipe } from "@angular/common";
-import { Component, effect, inject, input, OnDestroy, signal } from "@angular/core";
+import { Component, effect, HostListener, inject, input, OnDestroy, signal } from "@angular/core";
 import { ComposeOutput, DockerService } from "@services";
 
 @Component({
@@ -10,11 +10,10 @@ import { ComposeOutput, DockerService } from "@services";
 })
 export class ComposeProgress implements OnDestroy {
 	readonly projectDirectory = input.required<string>();
-
 	readonly lines = signal<ComposeOutput[]>([]);
+	readonly fullscreen = signal(false);
 
 	private readonly docker = inject(DockerService);
-
 	private unlisten?: () => void;
 
 	constructor() {
@@ -24,13 +23,20 @@ export class ComposeProgress implements OnDestroy {
 			this.unlisten?.();
 			this.docker
 				.listenComposeOutput((output) => {
-					if (output.projectDirectory !== directory) {
-						return;
-					}
+					if (output.projectDirectory !== directory) return;
 					this.lines.update((current) => [...current, output]);
 				})
 				.then((unlisten) => (this.unlisten = unlisten));
 		});
+	}
+
+	toggleFullscreen(): void {
+		this.fullscreen.update((value) => !value);
+	}
+
+	@HostListener("document:keydown.escape")
+	onEscape(): void {
+		this.fullscreen.set(false);
 	}
 
 	ngOnDestroy(): void {
