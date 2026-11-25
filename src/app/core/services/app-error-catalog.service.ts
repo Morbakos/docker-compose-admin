@@ -150,7 +150,7 @@ export class AppErrorCatalogService {
 
 	getUserMessage(error: unknown): string {
 		const text = extractErrorText(error).trim();
-		if (safeUserMessages.some((message) => normalize(text).includes(message))) return text;
+		if (safeUserMessages.some((message) => normalize(text).includes(normalize(message)))) return text;
 		return messages[this.getCode(error)];
 	}
 }
