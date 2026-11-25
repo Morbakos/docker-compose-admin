@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from "@angular/core";
-import { DockerService, PersistedComposeProject } from "./docker.service";
+import { DockerService } from "./docker.service";
+import type { PersistedComposeProject } from "./docker.service";
 import { parseLegacyServiceSelections } from "./legacy-service-selections";
 
 /**

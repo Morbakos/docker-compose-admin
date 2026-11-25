@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from "@angular/core";
-import { ComposeAction, ComposeContainer, DockerService } from "./docker.service";
+import { DockerService } from "./docker.service";
+import type { ComposeAction, ComposeContainer } from "./docker.service";
 import { ProjectRegistryService } from "./project-registry.service";
 
 export type NoticeKind = "success" | "error" | "info";

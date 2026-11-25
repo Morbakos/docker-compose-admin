@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject } from "@angular/core";
-import { ComposeAction, ComposeContainer, PersistedComposeProject } from "./core/services/docker.service";
+import type { ComposeAction, ComposeContainer, PersistedComposeProject } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 import { ProjectEnvironmentService } from "./core/services/project-environment.service";
 import { ProjectCatalogFacade } from "./core/services/project-catalog.facade";
@@ -104,9 +104,6 @@ export class AppComponent {
 		return this.catalog.isRunning(project);
 	}
 
-	statusLabel(project: PersistedComposeProject): string {
-		return this.catalog.statusLabel(project);
-	}
 
 	setNotice(kind: "success" | "error" | "info", text: string): void {
 		this.environment.setNotice(kind, text);

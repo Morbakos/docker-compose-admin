@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from "@angular/core";
-import { DockerService, type PersistedComposeProject } from "./docker.service";
+import { DockerService } from "./docker.service";
+import type { PersistedComposeProject } from "./docker.service";
 import { ProjectRegistryService } from "./project-registry.service";
 import { ProjectEnvironmentService } from "./project-environment.service";
 
@@ -103,12 +104,6 @@ export class ProjectCatalogFacade {
 		return project.status === "running";
 	}
 
-	statusLabel(project: PersistedComposeProject): string {
-		if (!project.accessible) return "Dossier introuvable";
-		if (project.status === "running") return "En cours";
-		if (project.status === "stopped") return "Arrêté";
-		return "Non vérifié";
-	}
 
 	private errorMessage(error: unknown): string {
 		return error instanceof Error ? error.message : String(error);
