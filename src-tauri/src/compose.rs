@@ -405,20 +405,59 @@ pub(crate) fn compose_watch_services(project: &ComposeProject) -> Result<Vec<Str
     let output = run_docker(&args)?;
     let config: Value = serde_json::from_slice(&output.stdout)
         .map_err(|error| format!("Configuration Compose JSON invalide : {error}"))?;
-    let mut watched = Vec::new();
-    if let Some(services) = config.get("services").and_then(Value::as_object) {
-        for (name, service) in services {
-            let has_watch = service.get("develop")
-                .and_then(|develop| develop.get("watch"))
-                .and_then(Value::as_array)
-                .is_some_and(|rules| !rules.is_empty());
-            if has_watch {
-                watched.push(name.clone());
+    Ok(watched_service_names(&config))
+}
+
+fn watched_service_names(config: &Value) -> Vec<String> {
+    let mut watched = config.get("services")
+        .and_then(Value::as_object)
+        .map(|services| {
+            services.iter().filter_map(|(name, service)| {
+                let has_watch = service.get("develop")
+                    .and_then(|develop| develop.get("watch"))
+                    .and_then(Value::as_array)
+                    .is_some_and(|rules| !rules.is_empty());
+                has_watch.then(|| name.clone())
+            }).collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    watched.sort();
+    watched
+}
+
+fn project_status_from_output(text: &str) -> String {
+    if text.trim().is_empty() {
+        return "stopped".to_string();
+    }
+
+    let mut states = Vec::new();
+    if let Ok(value) = serde_json::from_str::<Value>(text) {
+        if let Some(rows) = value.as_array() {
+            for row in rows {
+                if let Some(state) = row.get("State").or_else(|| row.get("Status")).and_then(Value::as_str) {
+                    states.push(state.to_ascii_lowercase());
+                }
+            }
+        } else if let Some(state) = value.get("State").or_else(|| value.get("Status")).and_then(Value::as_str) {
+            states.push(state.to_ascii_lowercase());
+        }
+    } else {
+        for line in text.lines() {
+            if let Ok(row) = serde_json::from_str::<Value>(line) {
+                if let Some(state) = row.get("State").or_else(|| row.get("Status")).and_then(Value::as_str) {
+                    states.push(state.to_ascii_lowercase());
+                }
             }
         }
     }
-    watched.sort();
-    Ok(watched)
+
+    if states.is_empty() {
+        "unknown".to_string()
+    } else if states.iter().any(|state| state == "running" || state.starts_with("up ")) {
+        "running".to_string()
+    } else {
+        "stopped".to_string()
+    }
 }
 
 fn project_status(project: &ComposeProject) -> String {
@@ -435,54 +474,7 @@ fn project_status(project: &ComposeProject) -> String {
         Err(_) => return "unknown".to_string(),
     };
 
-    let text = String::from_utf8_lossy(&output.stdout);
-    if text.trim().is_empty() {
-        return "stopped".to_string();
-    }
-
-    let mut states = Vec::new();
-    if let Ok(value) = serde_json::from_str::<Value>(&text) {
-        if let Some(rows) = value.as_array() {
-            for row in rows {
-                if let Some(state) = row
-                    .get("State")
-                    .or_else(|| row.get("Status"))
-                    .and_then(Value::as_str)
-                {
-                    states.push(state.to_ascii_lowercase());
-                }
-            }
-        } else if let Some(state) = value
-            .get("State")
-            .or_else(|| value.get("Status"))
-            .and_then(Value::as_str)
-        {
-            states.push(state.to_ascii_lowercase());
-        }
-    } else {
-        for line in text.lines() {
-            if let Ok(row) = serde_json::from_str::<Value>(line) {
-                if let Some(state) = row
-                    .get("State")
-                    .or_else(|| row.get("Status"))
-                    .and_then(Value::as_str)
-                {
-                    states.push(state.to_ascii_lowercase());
-                }
-            }
-        }
-    }
-
-    if states.is_empty() {
-        "unknown".to_string()
-    } else if states
-        .iter()
-        .any(|state| state == "running" || state.starts_with("up "))
-    {
-        "running".to_string()
-    } else {
-        "stopped".to_string()
-    }
+    project_status_from_output(&String::from_utf8_lossy(&output.stdout))
 }
 
 pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
@@ -940,31 +932,39 @@ pub async fn run_compose_service_action(
 
 #[cfg(test)]
 mod tests {
-    use super::{is_compose_file_name, is_ignored_directory};
+    use super::{
+        is_compose_file_name, is_ignored_directory, parse_port_list, project_status_from_output,
+        validate_selected_services, watched_service_names, ComposeProject,
+    };
+    use serde_json::json;
+
+    fn project() -> ComposeProject {
+        ComposeProject {
+            name: "example".into(),
+            directory: "/tmp/example".into(),
+            relative_directory: ".".into(),
+            compose_files: vec!["/tmp/example/compose.yaml".into()],
+            available_compose_files: vec!["/tmp/example/compose.yaml".into()],
+            services: vec!["api".into(), "worker".into()],
+            watch_services: Vec::new(),
+            status: "stopped".into(),
+            root_directory: "/tmp/example".into(),
+            selected_services: vec!["api".into()],
+            accessible: true,
+        }
+    }
 
     #[test]
     fn recognizes_supported_compose_yaml_names() {
-        for file in [
-            "compose.yaml",
-            "compose.yml",
-            "docker-compose.yaml",
-            "docker-compose.yml",
-            "compose.override.yaml",
-            "docker-compose.prod.yml",
-        ] {
+        for file in ["compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml",
+            "compose.override.yaml", "docker-compose.prod.yml"] {
             assert!(is_compose_file_name(file), "{file} should be recognized");
         }
     }
 
     #[test]
     fn ignores_non_compose_and_non_yaml_files() {
-        for file in [
-            "config.yaml",
-            "compose.yaml.example",
-            "docker-compose.json",
-            "compose.txt",
-            "my-compose.yaml",
-        ] {
+        for file in ["config.yaml", "compose.yaml.example", "docker-compose.json", "compose.txt", "my-compose.yaml"] {
             assert!(!is_compose_file_name(file), "{file} should be ignored");
         }
     }
@@ -975,5 +975,56 @@ mod tests {
         assert!(is_ignored_directory(".git"));
         assert!(is_ignored_directory("target"));
         assert!(!is_ignored_directory("my-app"));
+    }
+
+    #[test]
+    fn validates_required_optional_and_duplicate_service_selections() {
+        let project = project();
+        assert_eq!(validate_selected_services(&project, &[], false).unwrap(), Vec::<String>::new());
+        assert!(validate_selected_services(&project, &[], true).is_err());
+        assert_eq!(
+            validate_selected_services(&project, &["api".into(), "api".into(), "worker".into()], true).unwrap(),
+            vec!["api".to_string(), "worker".to_string()]
+        );
+        assert!(validate_selected_services(&project, &["unknown".into()], false).is_err());
+    }
+
+    #[test]
+    fn extracts_only_services_with_non_empty_watch_rules() {
+        let config = json!({
+            "services": {
+                "web": { "develop": { "watch": [{ "action": "sync" }] } },
+                "api": { "develop": { "watch": [] } },
+                "worker": { "develop": { "watch": [{ "action": "rebuild" }] } },
+                "db": {}
+            }
+        });
+        assert_eq!(watched_service_names(&config), vec!["web", "worker"]);
+        assert!(watched_service_names(&json!({ "services": [] })).is_empty());
+    }
+
+    #[test]
+    fn determines_project_status_from_compose_json_output() {
+        assert_eq!(project_status_from_output(""), "stopped");
+        assert_eq!(project_status_from_output(r#"[{"State":"running"},{"State":"exited"}]"#), "running");
+        assert_eq!(project_status_from_output(r#"{"Status":"Up 2 minutes"}"#), "running");
+        assert_eq!(project_status_from_output("{\"State\":\"exited\"}\n{\"State\":\"created\"}"), "stopped");
+        assert_eq!(project_status_from_output("not json"), "unknown");
+    }
+
+    #[test]
+    fn parses_container_ports_from_string_and_publisher_objects() {
+        assert_eq!(
+            parse_port_list(&json!({ "Ports": "8080:80/tcp, 5353:53/udp" })),
+            vec!["8080:80/tcp", "5353:53/udp"]
+        );
+        assert_eq!(
+            parse_port_list(&json!({ "Publishers": [
+                { "PublishedPort": 8081, "TargetPort": 80, "Protocol": "tcp" },
+                { "TargetPort": 53, "Protocol": "udp" }
+            ] })),
+            vec!["8081:80/tcp", "53/udp"]
+        );
+        assert!(parse_port_list(&json!({})).is_empty());
     }
 }
