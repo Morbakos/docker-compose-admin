@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from "@angular/core";
 import { ServiceSelection } from "../service-selection/service-selection";
 import { ContainerList } from "../container-list/container-list";
 import { LogsPanel } from "../logs-panel/logs-panel";
@@ -7,6 +7,7 @@ import { ComposeAction, DockerService } from "@services";
 import { ComposeProgress } from "../compose-progress/compose-progress";
 
 @Component({
+	changeDetection: ChangeDetectionStrategy.OnPush,
 	imports: [ServiceSelection, ContainerList, LogsPanel, ComposeProgress],
 	selector: "app-project-workspace",
 	styleUrl: "./project-workspace.scss",
