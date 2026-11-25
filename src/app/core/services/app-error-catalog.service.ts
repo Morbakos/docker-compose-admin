@@ -99,6 +99,7 @@ const safeUserMessages = [
 	"la version disponible a changé. vérifiez à nouveau les mises à jour.",
 	"aucune mise à jour n'est actuellement disponible.",
 	"le chemin sélectionné n'est pas un dossier.",
+	"action effectuée, mais impossible d’actualiser l’état du projet.",
 ];
 
 function extractErrorText(error: unknown): string {
