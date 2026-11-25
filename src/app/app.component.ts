@@ -3,7 +3,8 @@ import { ComposeAction, ComposeContainer, PersistedComposeProject } from "./core
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 import { ProjectEnvironmentService } from "./core/services/project-environment.service";
 import { ProjectCatalogFacade } from "./core/services/project-catalog.facade";
-import { ApplicationRuntimeService } from "./core/services/application-runtime.service";
+import { ApplicationUpdateService } from "./core/services/application-update.service";
+import { DockerEngineMonitorService } from "./core/services/docker-engine-monitor.service";
 
 @Component({
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -15,7 +16,8 @@ import { ApplicationRuntimeService } from "./core/services/application-runtime.s
 export class AppComponent {
 	private readonly catalog = inject(ProjectCatalogFacade);
 	private readonly environment = inject(ProjectEnvironmentService);
-	private readonly runtime = inject(ApplicationRuntimeService);
+	private readonly updates = inject(ApplicationUpdateService);
+	private readonly engineMonitor = inject(DockerEngineMonitorService);
 
 	readonly projects = this.catalog.projects;
 	readonly scanning = this.catalog.scanning;
@@ -24,11 +26,11 @@ export class AppComponent {
 	readonly choosingDirectory = this.catalog.choosingDirectory;
 	readonly busyDirectory = this.environment.busyDirectory;
 	readonly notice = this.environment.notice;
-	readonly buildInfo = this.runtime.buildInfo;
-	readonly availableUpdate = this.runtime.availableUpdate;
-	readonly checkingForUpdates = this.runtime.checkingForUpdates;
-	readonly installingUpdate = this.runtime.installingUpdate;
-	readonly dockerEngine = this.runtime.dockerEngine;
+	readonly buildInfo = this.updates.buildInfo;
+	readonly availableUpdate = this.updates.availableUpdate;
+	readonly checkingForUpdates = this.updates.checking;
+	readonly installingUpdate = this.updates.installing;
+	readonly dockerEngine = this.engineMonitor.status;
 
 	constructor() {
 		void this.catalog.refresh();
@@ -39,7 +41,7 @@ export class AppComponent {
 	}
 
 	checkForUpdates(): Promise<void> {
-		return this.runtime.checkForUpdates();
+		return this.updates.checkForUpdates();
 	}
 
 	async installUpdate(): Promise<void> {
@@ -47,7 +49,7 @@ export class AppComponent {
 		if (!update || this.installingUpdate()) return;
 		if (!window.confirm("Installer la version " + update.version + " et redémarrer Compose Admin ?")) return;
 		try {
-			await this.runtime.installUpdate();
+			await this.updates.installUpdate();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		}
