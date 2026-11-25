@@ -62,6 +62,9 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Lint Angular frontend
+        run: bun run lint
+
       - name: Build Angular frontend
         run: bun run build
 
