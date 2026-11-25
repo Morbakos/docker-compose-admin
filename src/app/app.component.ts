@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from "@angular/core";
 import {
 	BuildInfo,
 	UpdateInfo,
@@ -14,6 +14,7 @@ import { ProjectRegistryService } from "./core/services/project-registry.service
 type NoticeKind = "success" | "error" | "info";
 
 @Component({
+	changeDetection: ChangeDetectionStrategy.OnPush,
 	selector: "app-root",
 	imports: [ProjectWorkspace],
 	templateUrl: "./app.component.html",
