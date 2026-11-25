@@ -10,7 +10,7 @@ import {
 } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 import { ProjectRegistryService } from "./core/services/project-registry.service";
-import { ProjectEnvironmentService } from "./core/services/project-environment.service";
+import { NoticeKind, ProjectEnvironmentService } from "./core/services/project-environment.service";
 
 type NoticeKind = "success" | "error" | "info";
 
