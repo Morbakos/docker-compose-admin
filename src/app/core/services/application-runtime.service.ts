@@ -4,6 +4,7 @@ import { DockerService, type BuildInfo, type DockerEngineStatusWithChecking, typ
 @Injectable({ providedIn: "root" })
 export class ApplicationRuntimeService {
 	private readonly docker = inject(DockerService);
+	private engineCheckInFlight = false;
 
 	readonly buildInfo = signal<BuildInfo>({ version: "…", commit: "…", updaterEnabled: false });
 	readonly availableUpdate = signal<UpdateInfo | null>(null);
@@ -26,6 +27,8 @@ export class ApplicationRuntimeService {
 	}
 
 	async refreshDockerStatus(): Promise<void> {
+		if (this.engineCheckInFlight) return;
+		this.engineCheckInFlight = true;
 		this.dockerEngine.update((current) => ({ ...current, checking: true }));
 		try {
 			this.dockerEngine.set({ ...(await this.docker.getEngineStatus()), checking: false });
@@ -33,6 +36,8 @@ export class ApplicationRuntimeService {
 			this.dockerEngine.set({
 				connected: false, version: null, error: this.errorMessage(error), checking: false,
 			});
+		} finally {
+			this.engineCheckInFlight = false;
 		}
 	}
 

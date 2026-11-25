@@ -38,7 +38,7 @@ export class ProjectEnvironmentService {
 				project.rootDirectory, project.directory, container.service, action,
 			);
 			this.setNotice("success", result || "Service " + container.service + " : " + action + " effectué.");
-			await this.registry.refresh();
+			await this.refreshAfterAction();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		} finally {
@@ -61,7 +61,7 @@ export class ProjectEnvironmentService {
 		try {
 			const result = await this.docker.runAction(project.rootDirectory, project.directory, action, services);
 			this.setNotice("success", result || this.actionSuccess(action, project.name));
-			await this.registry.refresh();
+			await this.refreshAfterAction();
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
 		} finally {
@@ -74,6 +74,14 @@ export class ProjectEnvironmentService {
 			await this.docker.openExternalUrl(url);
 		} catch (error) {
 			this.setNotice("error", this.errorMessage(error));
+		}
+	}
+
+	private async refreshAfterAction(): Promise<void> {
+		try {
+			await this.registry.refresh();
+		} catch (error) {
+			this.setNotice("error", "Action effectuée, mais impossible d’actualiser l’état du projet : " + this.errorMessage(error));
 		}
 	}
 
