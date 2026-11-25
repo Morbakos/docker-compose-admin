@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from "@angular/core";
 import { DockerService, PersistedComposeProject } from "./docker.service";
+import { parseLegacyServiceSelections } from "./legacy-service-selections";
 
 /**
  * Owns the registered project catalog and the user's current project selection.
@@ -17,21 +18,34 @@ export class ProjectRegistryService {
 	readonly selectedServices = computed(() => this.selectedProject()?.selectedServices ?? []);
 
 	private readonly docker = inject(DockerService);
+	private refreshPromise: Promise<void> | null = null;
+	private refreshQueued = false;
 
-	async refresh(): Promise<void> {
-		if (this.scanning()) return;
-		this.scanning.set(true);
-		try {
-			const registered = await this.docker.listRegisteredProjects();
-			const projects = await this.migrateLegacyServiceSelections(registered);
-			this.projects.set(projects);
-			const selected = this.selectedDirectory();
-			if (!selected || !projects.some((project) => project.directory === selected)) {
-				this.selectedDirectory.set(projects[0]?.directory ?? null);
-			}
-		} finally {
-			this.scanning.set(false);
+	refresh(): Promise<void> {
+		if (this.refreshPromise) {
+			this.refreshQueued = true;
+			return this.refreshPromise;
 		}
+
+		this.scanning.set(true);
+		const refresh = async (): Promise<void> => {
+			do {
+				this.refreshQueued = false;
+				const registered = await this.docker.listRegisteredProjects();
+				const projects = await this.migrateLegacyServiceSelections(registered);
+				this.projects.set(projects);
+				const selected = this.selectedDirectory();
+				if (!selected || !projects.some((project) => project.directory === selected)) {
+					this.selectedDirectory.set(projects[0]?.directory ?? null);
+				}
+			} while (this.refreshQueued);
+		};
+
+		this.refreshPromise = refresh().finally(() => {
+			this.scanning.set(false);
+			this.refreshPromise = null;
+		});
+		return this.refreshPromise;
 	}
 
 	async addDirectory(directory: string): Promise<void> {
@@ -73,10 +87,8 @@ export class ProjectRegistryService {
 		const raw = localStorage.getItem("compose-admin.service-selections");
 		if (!raw) return projects;
 
-		let legacy: Record<string, string[]>;
-		try {
-			legacy = JSON.parse(raw) as Record<string, string[]>;
-		} catch {
+		const legacy = parseLegacyServiceSelections(raw);
+		if (!legacy) {
 			localStorage.removeItem("compose-admin.service-selections");
 			return projects;
 		}

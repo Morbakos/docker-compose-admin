@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
+import { ChangeDetectionStrategy, Component, DestroyRef, inject } from "@angular/core";
 import { ComposeAction, ComposeContainer, PersistedComposeProject } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 import { ProjectEnvironmentService } from "./core/services/project-environment.service";
@@ -32,9 +32,10 @@ export class AppComponent {
 
 	constructor() {
 		void this.catalog.refresh();
-		window.setInterval(() => {
+		const refreshTimer = window.setInterval(() => {
 			if (this.dockerEngine().connected && !this.scanning()) void this.catalog.refresh(true);
 		}, 15000);
+		inject(DestroyRef).onDestroy(() => window.clearInterval(refreshTimer));
 	}
 
 	async installUpdate(): Promise<void> {
