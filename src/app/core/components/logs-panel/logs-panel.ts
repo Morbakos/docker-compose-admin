@@ -40,9 +40,7 @@ export class LogsPanel {
 			this.error.set(null);
 
 			this.docker.listenComposeOutput((output) => {
-				if (output.projectDirectory === projectDirectory && output.source === "container") {
-					this.lines.update((current) => appendComposeOutput(current, output, projectDirectory, "container"));
-				}
+				this.lines.update((current) => appendComposeOutput(current, output, projectDirectory, "container"));
 			}).then(async (stopListening) => {
 				if (cancelled) {
 					stopListening();

@@ -7,7 +7,6 @@ import { ChangeDetectionStrategy,
 	HostListener,
 	inject,
 	input,
-	OnDestroy,
 	signal,
 	viewChild,
 } from "@angular/core";
@@ -21,7 +20,7 @@ import { appendComposeOutput } from "../compose-output-buffer";
 	styleUrl: "./compose-progress.scss",
 	templateUrl: "./compose-progress.html",
 })
-export class ComposeProgress implements OnDestroy {
+export class ComposeProgress {
 	readonly projectDirectory = input.required<string>();
 	readonly lines = signal<ComposeOutput[]>([]);
 	readonly fullscreen = signal(false);
@@ -35,13 +34,9 @@ export class ComposeProgress implements OnDestroy {
 			const directory = this.projectDirectory();
 			let cancelled = false;
 			this.lines.set([]);
-			this.unlisten?.();
-			this.unlisten = undefined;
 
 			this.docker.listenComposeOutput((output) => {
-				if (output.projectDirectory === directory && output.source === "watch") {
-					this.lines.update((current) => appendComposeOutput(current, output, directory, "watch"));
-				}
+				this.lines.update((current) => appendComposeOutput(current, output, directory, "watch"));
 			}).then((unlisten) => {
 				if (cancelled) unlisten();
 				else this.unlisten = unlisten;
@@ -74,9 +69,5 @@ export class ComposeProgress implements OnDestroy {
 	@HostListener("document:keydown.escape")
 	onEscape(): void {
 		this.fullscreen.set(false);
-	}
-
-	ngOnDestroy(): void {
-		this.unlisten?.();
 	}
 }
