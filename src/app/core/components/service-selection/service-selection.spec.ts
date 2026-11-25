@@ -12,7 +12,8 @@ describe("ServiceSelection", () => {
 
 		const toggled = vi.fn();
 		fixture.componentInstance.toggled.subscribe(toggled);
-		const checkboxes = fixture.nativeElement.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+		const host = fixture.nativeElement as HTMLElement;
+		const checkboxes = host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
 		checkboxes[1].click();
 
 		expect(toggled).toHaveBeenCalledWith("worker");
