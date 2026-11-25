@@ -27,7 +27,7 @@ fn open_database(app: &AppHandle) -> Result<Connection, String> {
     Ok(connection)
 }
 
-fn validate_compose_file_selection(available: &[String], selected: &[String]) -> Result<(), String> {
+fn validate_compose_file_selection(available: &[String], selected: &[String]) -> Result<Vec<String>, String> {
     if selected.is_empty() {
         return Err("Sélectionnez au moins un fichier Compose.".to_string());
     }
@@ -36,7 +36,7 @@ fn validate_compose_file_selection(available: &[String], selected: &[String]) ->
     if selected.iter().any(|file| !available.contains(file.as_str()) || !unique.insert(file.as_str())) {
         return Err("La sélection contient un fichier Compose inconnu ou en double.".to_string());
     }
-    Ok(())
+    Ok(selected.to_vec())
 }
 
 fn retain_available_services(available: &[String], selected: Vec<String>) -> Vec<String> {
@@ -230,8 +230,7 @@ pub async fn save_project_compose_files(
         let mut project: ComposeProject = serde_json::from_str(&json)
             .map_err(|error| format!("Métadonnées du projet invalides : {error}"))?;
         project.selected_services = serde_json::from_str(&selected_json).unwrap_or_default();
-        validate_compose_file_selection(&project.available_compose_files, &files)?;
-        project.compose_files = files;
+        project.compose_files = validate_compose_file_selection(&project.available_compose_files, &files)?;
         project.services = compose_services(&project)?;
         project.watch_services = compose_watch_services(&project)?;
         project.selected_services.retain(|service| project.services.contains(service));
@@ -305,7 +304,7 @@ mod tests {
     fn validates_compose_file_selection_and_preserves_order() {
         let available = vec!["compose.yaml".to_string(), "compose.dev.yaml".to_string()];
         let selected = vec!["compose.dev.yaml".to_string(), "compose.yaml".to_string()];
-        assert!(validate_compose_file_selection(&available, &selected).is_ok());
+        assert_eq!(validate_compose_file_selection(&available, &selected).unwrap(), selected);
         assert!(validate_compose_file_selection(&available, &[]).is_err());
         assert!(validate_compose_file_selection(&available, &["missing.yaml".to_string()]).is_err());
         assert!(validate_compose_file_selection(
