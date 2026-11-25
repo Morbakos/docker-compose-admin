@@ -10,6 +10,7 @@ import {
 } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 import { ProjectRegistryService } from "./core/services/project-registry.service";
+import { ProjectEnvironmentService } from "./core/services/project-environment.service";
 
 type NoticeKind = "success" | "error" | "info";
 
@@ -23,6 +24,7 @@ type NoticeKind = "success" | "error" | "info";
 export class AppComponent {
 	private readonly docker = inject(DockerService);
 	private readonly registry = inject(ProjectRegistryService);
+	private readonly environment = inject(ProjectEnvironmentService);
 	readonly projects = this.registry.projects;
 	readonly scanning = this.registry.scanning;
 	readonly selectedProject = this.registry.selectedProject;
@@ -38,9 +40,9 @@ export class AppComponent {
 		checking: true,
 	});
 	readonly choosingDirectory = signal(false);
-	readonly busyDirectory = signal<string | null>(null);
+	readonly busyDirectory = this.environment.busyDirectory;
 	private updateCheckTimer: number | null = null;
-	readonly notice = signal<{ kind: NoticeKind; text: string } | null>(null);
+	readonly notice = this.environment.notice;
 
 	constructor() {
 		const refreshTimer = window.setInterval(() => {
@@ -190,49 +192,15 @@ export class AppComponent {
 	}
 
 	async runServiceAction(container: ComposeContainer, action: "start" | "stop" | "restart"): Promise<void> {
-		const project = this.selectedProject();
-		if (!project?.accessible || this.busyDirectory()) return;
-		this.busyDirectory.set(project.directory);
-		this.setNotice("info", action + " service " + container.service + "…");
-		try {
-			const result = await this.docker.runServiceAction(project.rootDirectory, project.directory, container.service, action);
-			this.setNotice("success", result || "Service " + container.service + " : " + action + " effectué.");
-			await this.refreshProjects(true);
-		} catch (error) {
-			this.setNotice("error", this.errorMessage(error));
-		} finally {
-			this.busyDirectory.set(null);
-		}
+		await this.environment.runServiceAction(container, action);
 	}
 
 	async runAction(action: ComposeAction): Promise<void> {
-		const project = this.selectedProject();
-		if (!project?.accessible || this.busyDirectory()) return;
-		const services = this.selectedServices();
-		if ((action === "start" || action === "restart" || action === "build") && services.length === 0) {
-			this.setNotice("error", "Sélectionnez au moins un service à démarrer.");
-			return;
-		}
-		this.busyDirectory.set(project.directory);
-		this.setNotice("info", this.actionProgress(action, project.name));
-		try {
-			const result = await this.docker.runAction(project.rootDirectory, project.directory, action, services);
-			this.setNotice("success", result || this.actionSuccess(action, project.name));
-			await this.refreshProjects(true);
-		} catch (error) {
-			this.setNotice("error", this.errorMessage(error));
-		} finally {
-			this.busyDirectory.set(null);
-		}
+		await this.environment.runAction(action);
 	}
 
-
 	async openApplication(url: string): Promise<void> {
-		try {
-			await this.docker.openExternalUrl(url);
-		} catch (error) {
-			this.setNotice("error", this.errorMessage(error));
-		}
+		await this.environment.openApplication(url);
 	}
 	isRunning(project: PersistedComposeProject): boolean {
 		return project.status === "running";
@@ -241,10 +209,10 @@ export class AppComponent {
 		return !project.accessible ? "Dossier introuvable" : project.status === "running" ? "En cours" : project.status === "stopped" ? "Arrêté" : "Non vérifié";
 	}
 	setNotice(kind: NoticeKind, text: string): void {
-		this.notice.set({ kind, text });
+		this.environment.setNotice(kind, text);
 	}
 	clearNotice(): void {
-		this.notice.set(null);
+		this.environment.clearNotice();
 	}
 	private errorMessage(error: unknown): string {
 		return error instanceof Error ? error.message : String(error);
