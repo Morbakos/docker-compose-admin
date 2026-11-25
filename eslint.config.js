@@ -23,6 +23,7 @@ module.exports = defineConfig([
 					style: "camelCase",
 				},
 			],
+			"@angular-eslint/prefer-on-push-component-change-detection": "error",
 			"@angular-eslint/component-selector": [
 				"error",
 				{
