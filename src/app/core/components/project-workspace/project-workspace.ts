@@ -5,6 +5,7 @@ import { LogsPanel } from "../logs-panel/logs-panel";
 import { ComposeProject, ComposeContainer } from "@bindings";
 import { ComposeAction, DockerService } from "@services";
 import { ComposeProgress } from "../compose-progress/compose-progress";
+import { findApplicationUrl, orderComposeFiles } from "./workspace-configuration";
 
 @Component({
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,9 +18,7 @@ export class ProjectWorkspace {
 	readonly project = input.required<ComposeProject>();
 	readonly orderedComposeFiles = computed(() => {
 		const project = this.project();
-		const selected = project.composeFiles.filter((file) => project.availableComposeFiles.includes(file));
-		const unselected = project.availableComposeFiles.filter((file) => !project.composeFiles.includes(file));
-		return [...selected, ...unselected];
+		return orderComposeFiles(project.availableComposeFiles, project.composeFiles);
 	});
 	readonly containers = signal<ComposeContainer[]>([]);
 	readonly containersLoading = signal(false);
@@ -29,13 +28,7 @@ export class ProjectWorkspace {
 	readonly watchServices = input<string[]>([]);
 	readonly busy = input(false);
 	readonly applicationUrl = computed(() => {
-		for (const container of this.containers()) {
-			for (const port of container.ports) {
-				const url = this.portUrl(port);
-				if (url) return url;
-			}
-		}
-		return null;
+		return findApplicationUrl(this.containers());
 	});
 	readonly projectAction = output<ComposeAction>();
 	readonly serviceToggle = output<string>();
@@ -81,11 +74,6 @@ export class ProjectWorkspace {
 		const current = this.project().composeFiles;
 		const next = checked ? [...current, file] : current.filter((item) => item !== file);
 		if (next.length > 0) this.composeFilesChange.emit(next);
-	}
-
-	private portUrl(port: string): string | null {
-		const match = port.match(/^(?:[^:]+:)?(\d+):(\d+)(?:\/(tcp|udp))?$/i);
-		return match && (!match[3] || match[3].toLowerCase() === "tcp") ? "http://localhost:" + match[1] : null;
 	}
 
 	moveComposeFile(file: string, offset: number): void {

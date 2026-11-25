@@ -10,7 +10,8 @@
 		"format:fix": "prettier --config .prettierrc.json --write src/",
 		"tauri": "tauri",
 		"lint": "ng lint",
-		"format-lint": "bun format:fix && bun lint"
+		"format-lint": "bun format:fix && bun lint",
+		"test": "bun test tests"
 	},
 	"private": true,
 	"dependencies": {
