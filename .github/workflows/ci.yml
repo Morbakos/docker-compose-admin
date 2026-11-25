@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -71,8 +71,14 @@ jobs:
       - name: Build Angular frontend
         run: bun run build
 
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      - name: Build Rust release
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
 
       - name: Build desktop installers
         run: bun run tauri build
