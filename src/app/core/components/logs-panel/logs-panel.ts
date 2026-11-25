@@ -10,6 +10,7 @@ import { ChangeDetectionStrategy,
 	viewChild,
 } from "@angular/core";
 import { ComposeOutput, DockerService } from "@services";
+import { appendComposeOutput } from "../compose-output-buffer";
 
 @Component({
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,7 +41,7 @@ export class LogsPanel {
 
 			this.docker.listenComposeOutput((output) => {
 				if (output.projectDirectory === projectDirectory && output.source === "container") {
-					this.lines.update((current) => [...current, output].slice(-5000));
+					this.lines.update((current) => appendComposeOutput(current, output, projectDirectory, "container"));
 				}
 			}).then(async (stopListening) => {
 				if (cancelled) {

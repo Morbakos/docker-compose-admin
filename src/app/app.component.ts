@@ -10,9 +10,8 @@ import {
 } from "./core/services/docker.service";
 import { ProjectWorkspace } from "./core/components/project-workspace/project-workspace";
 import { ProjectRegistryService } from "./core/services/project-registry.service";
-import { NoticeKind, ProjectEnvironmentService } from "./core/services/project-environment.service";
+import { ProjectEnvironmentService } from "./core/services/project-environment.service";
 
-type NoticeKind = "success" | "error" | "info";
 
 @Component({
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -216,27 +215,5 @@ export class AppComponent {
 	}
 	private errorMessage(error: unknown): string {
 		return error instanceof Error ? error.message : String(error);
-	}
-	private actionProgress(action: ComposeAction, name: string): string {
-		const labels: Record<ComposeAction, string> = {
-			start: "Démarrage",
-			stop: "Arrêt",
-			restart: "Redémarrage",
-			pull: "Récupération des images",
-			build: "Construction des images",
-		};
-		return action === "pull" || action === "build"
-			? labels[action] + " pour " + name + "…"
-			: labels[action] + " de " + name + "…";
-	}
-	private actionSuccess(action: ComposeAction, name: string): string {
-		const labels: Record<ComposeAction, string> = {
-			start: "démarré",
-			stop: "arrêté",
-			restart: "redémarré",
-			pull: "images récupérées",
-			build: "images construites",
-		};
-		return name + " : " + labels[action] + ".";
 	}
 }
