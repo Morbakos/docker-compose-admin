@@ -31,7 +31,7 @@ describe("ProjectWorkspace", () => {
 	it("orders selected Compose files first and emits reordering changes", async () => {
 		const docker = {
 			getContainers: vi.fn().mockResolvedValue([]),
-			listenComposeOutput: vi.fn().mockResolvedValue(() => {}),
+			listenComposeOutput: vi.fn().mockResolvedValue(() => undefined),
 			startComposeLogs: vi.fn().mockResolvedValue(undefined),
 			stopComposeLogs: vi.fn().mockResolvedValue(undefined),
 		};
@@ -63,7 +63,7 @@ describe("ProjectWorkspace", () => {
 	it("derives the application URL from the first published TCP port", async () => {
 		const docker = {
 			getContainers: vi.fn().mockResolvedValue([container]),
-			listenComposeOutput: vi.fn().mockResolvedValue(() => {}),
+			listenComposeOutput: vi.fn().mockResolvedValue(() => undefined),
 			startComposeLogs: vi.fn().mockResolvedValue(undefined),
 			stopComposeLogs: vi.fn().mockResolvedValue(undefined),
 		};
