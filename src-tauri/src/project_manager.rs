@@ -27,6 +27,26 @@ fn open_database(app: &AppHandle) -> Result<Connection, String> {
     Ok(connection)
 }
 
+fn validate_compose_file_selection(available: &[String], selected: &[String]) -> Result<(), String> {
+    if selected.is_empty() {
+        return Err("Sélectionnez au moins un fichier Compose.".to_string());
+    }
+    let available: std::collections::BTreeSet<&str> = available.iter().map(String::as_str).collect();
+    let mut unique = std::collections::BTreeSet::new();
+    if selected.iter().any(|file| !available.contains(file.as_str()) || !unique.insert(file.as_str())) {
+        return Err("La sélection contient un fichier Compose inconnu ou en double.".to_string());
+    }
+    Ok(())
+}
+
+fn retain_available_services(available: &[String], selected: Vec<String>) -> Vec<String> {
+    let available: std::collections::BTreeSet<&str> = available.iter().map(String::as_str).collect();
+    let mut unique = std::collections::BTreeSet::new();
+    selected.into_iter()
+        .filter(|service| available.contains(service.as_str()) && unique.insert(service.clone()))
+        .collect()
+}
+
 fn store_project(connection: &Connection, project: &ComposeProject) -> Result<(), String> {
     let project_json = serde_json::to_string(project)
         .map_err(|error| format!("Sérialisation du projet impossible : {error}"))?;
@@ -103,10 +123,7 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
             project.accessible = false;
             project.status = "configuration_changed".to_string();
         }
-        let available_services = project.services.clone();
-        project.selected_services = selected_services.into_iter()
-            .filter(|service| available_services.contains(service))
-            .collect();
+        project.selected_services = retain_available_services(&project.services, selected_services);
         if project.accessible {
             store_project(&connection, &project)?;
         }
@@ -192,9 +209,7 @@ pub(crate) fn resolve_registered_project(
     project.services = compose_services(&project)?;
     project.watch_services = compose_watch_services(&project)?;
     let selected_services: Vec<String> = serde_json::from_str(&selected_services_json).unwrap_or_default();
-    project.selected_services = selected_services.into_iter()
-        .filter(|service| project.services.contains(service))
-        .collect();
+    project.selected_services = retain_available_services(&project.services, selected_services);
     Ok(project)
 }
 
@@ -215,14 +230,7 @@ pub async fn save_project_compose_files(
         let mut project: ComposeProject = serde_json::from_str(&json)
             .map_err(|error| format!("Métadonnées du projet invalides : {error}"))?;
         project.selected_services = serde_json::from_str(&selected_json).unwrap_or_default();
-        if files.is_empty() {
-            return Err("Sélectionnez au moins un fichier Compose.".to_string());
-        }
-        let available: std::collections::BTreeSet<String> = project.available_compose_files.iter().cloned().collect();
-        let mut unique = std::collections::BTreeSet::new();
-        if files.iter().any(|file| !available.contains(file) || !unique.insert(file.clone())) {
-            return Err("La sélection contient un fichier Compose inconnu ou en double.".to_string());
-        }
+        validate_compose_file_selection(&project.available_compose_files, &files)?;
         project.compose_files = files;
         project.services = compose_services(&project)?;
         project.watch_services = compose_watch_services(&project)?;
@@ -247,6 +255,7 @@ pub async fn save_project_services(app: AppHandle, directory: String, services: 
         if services.iter().any(|service| !project.services.contains(service)) {
             return Err("La sélection contient un service inconnu pour ce projet.".to_string());
         }
+        let services = retain_available_services(&project.services, services);
         let selected = serde_json::to_string(&services)
             .map_err(|error| format!("Sérialisation des services impossible : {error}"))?;
         connection.execute(
@@ -260,7 +269,7 @@ pub async fn save_project_services(app: AppHandle, directory: String, services: 
 
 #[cfg(test)]
 mod tests {
-    use super::store_project;
+    use super::{retain_available_services, store_project, validate_compose_file_selection};
     use crate::compose::ComposeProject;
     use rusqlite::Connection;
 
@@ -293,7 +302,40 @@ mod tests {
     }
 
     #[test]
-    fn refreshing_project_metadata_preserves_saved_service_selection() {
+
+    #[test]
+    fn validates_compose_file_selection_and_preserves_order() {
+        let available = vec!["compose.yaml".to_string(), "compose.dev.yaml".to_string()];
+        let selected = vec!["compose.dev.yaml".to_string(), "compose.yaml".to_string()];
+        assert!(validate_compose_file_selection(&available, &selected).is_ok());
+        assert!(validate_compose_file_selection(&available, &[]).is_err());
+        assert!(validate_compose_file_selection(&available, &["missing.yaml".to_string()]).is_err());
+        assert!(validate_compose_file_selection(
+            &available,
+            &["compose.yaml".to_string(), "compose.yaml".to_string()],
+        ).is_err());
+    }
+
+    #[test]
+    fn saved_service_selection_filters_unknown_values_and_removes_duplicates() {
+        let available = vec!["api".to_string(), "worker".to_string()];
+        let selected = vec![
+            "worker".to_string(), "unknown".to_string(),
+            "api".to_string(), "worker".to_string(),
+        ];
+        assert_eq!(
+            retain_available_services(&available, selected),
+            vec!["worker".to_string(), "api".to_string()],
+        );
+    }
+
+    #[test]
+    fn empty_service_selection_is_preserved() {
+        let available = vec!["api".to_string()];
+        assert!(retain_available_services(&available, Vec::new()).is_empty());
+    }
+
+        fn refreshing_project_metadata_preserves_saved_service_selection() {
         let connection = Connection::open_in_memory().unwrap();
         create_schema(&connection);
         let mut project = test_project("/tmp/example");
