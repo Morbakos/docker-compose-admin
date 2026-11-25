@@ -118,6 +118,7 @@ function normalize(text: string): string {
 function classifyLegacyError(text: string): AppErrorCode {
 	const value = normalize(text);
 	if (value.includes("docker cli introuvable") || value.includes("executable file not found") || value.includes("command not found: docker")) return "DOCKER_CLI_NOT_FOUND";
+	if (value.includes("pull access denied") || value.includes("failed to pull")) return "IMAGE_PULL_FAILED";
 	if (value.includes("permission denied") || value.includes("access denied") || value.includes("operation not permitted")) return "DOCKER_PERMISSION_DENIED";
 	if (value.includes("cannot connect to the docker daemon") || value.includes("docker daemon") || value.includes("docker engine ne repond pas") || value.includes("docker n'est pas demarre")) return "DOCKER_UNAVAILABLE";
 	if (value.includes("port is already allocated") || value.includes("address already in use") || value.includes("port") && value.includes("already in use")) return "PORT_ALREADY_IN_USE";
