@@ -302,8 +302,6 @@ mod tests {
     }
 
     #[test]
-
-    #[test]
     fn validates_compose_file_selection_and_preserves_order() {
         let available = vec!["compose.yaml".to_string(), "compose.dev.yaml".to_string()];
         let selected = vec!["compose.dev.yaml".to_string(), "compose.yaml".to_string()];
@@ -335,7 +333,8 @@ mod tests {
         assert!(retain_available_services(&available, Vec::new()).is_empty());
     }
 
-        fn refreshing_project_metadata_preserves_saved_service_selection() {
+    #[test]
+    fn refreshing_project_metadata_preserves_saved_service_selection() {
         let connection = Connection::open_in_memory().unwrap();
         create_schema(&connection);
         let mut project = test_project("/tmp/example");
