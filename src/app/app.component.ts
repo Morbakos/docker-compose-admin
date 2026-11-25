@@ -38,6 +38,10 @@ export class AppComponent {
 		inject(DestroyRef).onDestroy(() => window.clearInterval(refreshTimer));
 	}
 
+	checkForUpdates(): Promise<void> {
+		return this.runtime.checkForUpdates();
+	}
+
 	async installUpdate(): Promise<void> {
 		const update = this.availableUpdate();
 		if (!update || this.installingUpdate()) return;
