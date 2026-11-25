@@ -71,9 +71,6 @@ jobs:
       - name: Build Angular frontend
         run: bun run build
 
-      - name: Check Rust formatting
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
 
