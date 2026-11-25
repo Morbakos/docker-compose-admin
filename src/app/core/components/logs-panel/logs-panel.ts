@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy,
 	signal,
 	viewChild,
 } from "@angular/core";
-import { ComposeOutput, DockerService } from "@services";
+import { DockerService, type ComposeOutput } from "@services";
 import { appendComposeOutput } from "../compose-output-buffer";
 
 @Component({

@@ -1,4 +1,4 @@
-import { ComposeOutput } from "@services";
+import type { ComposeOutput } from "../services/docker.service";
 
 export const MAX_COMPOSE_OUTPUT_LINES = 5000;
 
