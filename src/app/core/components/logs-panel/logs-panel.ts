@@ -1,5 +1,5 @@
 import { DatePipe } from "@angular/common";
-import {
+import { ChangeDetectionStrategy,
 	afterRenderEffect,
 	Component,
 	effect,
@@ -12,6 +12,7 @@ import {
 import { ComposeOutput, DockerService } from "@services";
 
 @Component({
+	changeDetection: ChangeDetectionStrategy.OnPush,
 	imports: [DatePipe],
 	selector: "app-logs-panel",
 	styleUrl: "./logs-panel.scss",
