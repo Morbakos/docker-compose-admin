@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from "@angular/core";
 import { DockerService } from "./docker.service";
 import type { ComposeAction, ComposeContainer } from "./docker.service";
 import { ProjectRegistryService } from "./project-registry.service";
+import { AppErrorCatalogService } from "./app-error-catalog.service";
 
 export type NoticeKind = "success" | "error" | "info";
 export interface AppNotice {
@@ -14,6 +15,7 @@ export interface AppNotice {
 export class ProjectEnvironmentService {
 	private readonly docker = inject(DockerService);
 	private readonly registry = inject(ProjectRegistryService);
+	private readonly errorCatalog = inject(AppErrorCatalogService);
 
 	readonly busyDirectory = signal<string | null>(null);
 	readonly notice = signal<AppNotice | null>(null);
@@ -21,7 +23,7 @@ export class ProjectEnvironmentService {
 	readonly selectedServices = this.registry.selectedServices;
 
 	setNotice(kind: NoticeKind, text: string): void {
-		this.notice.set({ kind, text });
+		this.notice.set({ kind, text: kind === "error" ? this.errorCatalog.getUserMessage(text) : text });
 	}
 
 	clearNotice(): void {
