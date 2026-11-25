@@ -1,4 +1,4 @@
-import { Component, input, output } from "@angular/core";
+import { ChangeDetectionStrategy, Component, input, output } from "@angular/core";
 import { ComposeContainer } from "@bindings";
 
 export interface ContainerActionResult {
@@ -7,6 +7,7 @@ export interface ContainerActionResult {
 }
 
 @Component({
+	changeDetection: ChangeDetectionStrategy.OnPush,
 	imports: [],
 	selector: "app-container-list",
 	styleUrl: "./container-list.scss",
