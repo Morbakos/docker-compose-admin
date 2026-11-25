@@ -43,7 +43,7 @@ describe("ProjectWorkspace", () => {
 		const fixture = TestBed.createComponent(ProjectWorkspace);
 		fixture.componentRef.setInput("project", project);
 		fixture.detectChanges();
-		await fixture.whenStable();
+		await vi.waitFor(() => expect(docker.getContainers).toHaveBeenCalledOnce());
 
 		expect(fixture.componentInstance.orderedComposeFiles()).toEqual([
 			"/work/example/compose.yaml",
@@ -75,7 +75,7 @@ describe("ProjectWorkspace", () => {
 		const fixture = TestBed.createComponent(ProjectWorkspace);
 		fixture.componentRef.setInput("project", project);
 		fixture.detectChanges();
-		await fixture.whenStable();
+		await vi.waitFor(() => expect(fixture.componentInstance.applicationUrl()).toBe("http://localhost:4200"));
 
 		expect(fixture.componentInstance.applicationUrl()).toBe("http://localhost:4200");
 		expect(docker.getContainers).toHaveBeenCalledWith(project.rootDirectory, project.directory);

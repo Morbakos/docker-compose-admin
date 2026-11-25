@@ -22,7 +22,7 @@ describe("ComposeProgress", () => {
 		const fixture = TestBed.createComponent(ComposeProgress);
 		fixture.componentRef.setInput("projectDirectory", "/work/app");
 		fixture.detectChanges();
-		await fixture.whenStable();
+		await vi.waitFor(() => expect(docker.listenComposeOutput).toHaveBeenCalledOnce());
 
 		emit?.({ projectDirectory: "/work/other", source: "watch", stream: "stdout", line: "ignored", timestamp: 1 });
 		emit?.({ projectDirectory: "/work/app", source: "container", stream: "stdout", line: "ignored", timestamp: 2 });

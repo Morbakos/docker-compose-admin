@@ -25,7 +25,7 @@ describe("LogsPanel", () => {
 		fixture.componentRef.setInput("rootDirectory", "/work");
 		fixture.componentRef.setInput("projectDirectory", "/work/app");
 		fixture.detectChanges();
-		await fixture.whenStable();
+		await vi.waitFor(() => expect(docker.startComposeLogs).toHaveBeenCalledOnce());
 
 		expect(docker.startComposeLogs).toHaveBeenCalledWith("/work", "/work/app");
 		emit?.({ projectDirectory: "/work/other", source: "container", stream: "stdout", line: "ignored", timestamp: 1 });
