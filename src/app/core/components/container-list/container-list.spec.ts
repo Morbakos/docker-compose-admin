@@ -25,16 +25,28 @@ describe("ContainerList", () => {
 		fixture.destroy();
 	});
 
-	it("shows the loading state and disables actions while busy", async () => {
+	it("shows a loading message while containers are being fetched", async () => {
 		await TestBed.configureTestingModule({ imports: [ContainerList] }).compileComponents();
 		const fixture = TestBed.createComponent(ContainerList);
-		fixture.componentRef.setInput("containers", [stoppedContainer]);
+		fixture.componentRef.setInput("containers", []);
 		fixture.componentRef.setInput("loading", true);
-		fixture.componentRef.setInput("busy", true);
+		fixture.componentRef.setInput("busy", false);
 		fixture.detectChanges();
 
 		expect(fixture.nativeElement.textContent).toContain("Chargement des services");
-		expect(fixture.nativeElement.querySelector("button").disabled).toBe(true);
+		expect(fixture.nativeElement.querySelector(".container-actions")).toBeNull();
+		fixture.destroy();
+	});
+
+	it("disables container actions while a Compose operation is running", async () => {
+		await TestBed.configureTestingModule({ imports: [ContainerList] }).compileComponents();
+		const fixture = TestBed.createComponent(ContainerList);
+		fixture.componentRef.setInput("containers", [stoppedContainer]);
+		fixture.componentRef.setInput("loading", false);
+		fixture.componentRef.setInput("busy", true);
+		fixture.detectChanges();
+
+		expect(fixture.nativeElement.querySelector(".container-actions button").disabled).toBe(true);
 		fixture.destroy();
 	});
 });
