@@ -1,0 +1,24 @@
+.action-console {
+	border: 1px solid var(--border, #30343b);
+	border-radius: 12px;
+	overflow: hidden;
+	background: var(--surface, #171a20);
+	color: var(--text, #e8eaf0);
+}
+.console-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border, #30343b); }
+.console-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.console-title > span { color: var(--muted, #9ba3b4); font-size: 12px; }
+.activity-indicator { color: var(--success, #70c99b) !important; }
+.line-count { white-space: nowrap; }
+.console-actions { display: flex; gap: 8px; }
+.console-actions button { border: 1px solid var(--border, #30343b); border-radius: 7px; padding: 6px 10px; background: transparent; color: inherit; cursor: pointer; }
+.console-actions button:disabled { opacity: .45; cursor: default; }
+.console-output { max-height: 300px; overflow: auto; padding: 12px 16px; font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-line { display: flex; gap: 12px; }
+.log-line.error { color: #ff9b9b; }
+.timestamp { flex: 0 0 auto; color: var(--muted, #8e96a5); }
+.message { min-width: 0; }
+.empty-state { color: var(--muted, #9ba3b4); margin: 0; }
+.error-message { color: #ff9b9b; padding: 8px 16px; margin: 0; }
+.action-console.is-fullscreen { position: fixed; inset: 16px; z-index: 1000; display: flex; flex-direction: column; }
+.action-console.is-fullscreen .console-output { flex: 1; max-height: none; }
