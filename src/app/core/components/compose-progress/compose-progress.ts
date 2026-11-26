@@ -21,7 +21,9 @@ import { appendComposeOutput } from "../compose-output-buffer";
 	templateUrl: "./compose-progress.html",
 })
 export class ComposeProgress {
-	readonly projectDirectory = input.required<string>();\n\treadonly source = input<ComposeOutput["source"]>("watch");\n\treadonly title = input("Activité au démarrage");
+	readonly projectDirectory = input.required<string>();
+	readonly source = input<ComposeOutput["source"]>("watch");
+	readonly title = input("Activité au démarrage");
 	readonly lines = signal<ComposeOutput[]>([]);
 	readonly fullscreen = signal(false);
 
@@ -35,8 +37,8 @@ export class ComposeProgress {
 			let cancelled = false;
 			this.lines.set([]);
 
-			this.docker.listenComposeOutput((output) => {
-				this.lines.update((current) => appendComposeOutput(current, output, directory, "watch"));
+			this.sse.listenComposeOutput((output) => {
+				this.lines.update((current) => appendComposeOutput(current, output, directory, this.source()));
 			}).then((unlisten) => {
 				if (cancelled) unlisten();
 				else this.unlisten = unlisten;

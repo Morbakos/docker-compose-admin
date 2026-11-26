@@ -1,7 +1,7 @@
 import { TestBed } from "@angular/core/testing";
 import { describe, expect, it, vi } from "vitest";
 import type { ComposeOutput } from "@services";
-import { DockerService } from "@services";
+import { SseService } from "@services";
 import { ComposeProgress } from "./compose-progress";
 
 describe("ComposeProgress", () => {
@@ -16,13 +16,13 @@ describe("ComposeProgress", () => {
 		};
 		await TestBed.configureTestingModule({
 			imports: [ComposeProgress],
-			providers: [{ provide: DockerService, useValue: docker }],
+			providers: [{ provide: SseService, useValue: sse }],
 		}).compileComponents();
 
 		const fixture = TestBed.createComponent(ComposeProgress);
 		fixture.componentRef.setInput("projectDirectory", "/work/app");
 		fixture.detectChanges();
-		await vi.waitFor(() => expect(docker.listenComposeOutput).toHaveBeenCalledOnce());
+		await vi.waitFor(() => expect(sse.listenComposeOutput).toHaveBeenCalledOnce());
 
 		emit?.({ projectDirectory: "/work/other", source: "watch", stream: "stdout", line: "ignored", timestamp: 1 });
 		emit?.({ projectDirectory: "/work/app", source: "container", stream: "stdout", line: "ignored", timestamp: 2 });

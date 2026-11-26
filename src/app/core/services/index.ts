@@ -1,2 +1,2 @@
 export * from "./docker.service";
-export * from "./sse.service";\n
+export * from "./sse.service";

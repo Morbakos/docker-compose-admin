@@ -1,7 +1,6 @@
 import { Injectable } from "@angular/core";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { commands, type ComposeContainer, type ComposeProject, type DockerEngineStatus } from "@bindings";
 
 export type { ComposeContainer, ComposeProject, DockerEngineStatus };
@@ -96,7 +95,4 @@ export class DockerService {
 		return invoke<void>("stop_compose_logs", { projectDirectory });
 	}
 
-	listenComposeOutput(callback: (output: ComposeOutput) => void): Promise<UnlistenFn> {
-		return listen<ComposeOutput>("compose-output", ({ payload }) => callback(payload));
-	}
 }

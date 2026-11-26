@@ -1,7 +1,7 @@
 import { TestBed } from "@angular/core/testing";
 import { describe, expect, it, vi } from "vitest";
 import type { ComposeOutput } from "@services";
-import { DockerService } from "@services";
+import { DockerService, SseService } from "@services";
 import { LogsPanel } from "./logs-panel";
 
 describe("LogsPanel", () => {
@@ -18,7 +18,7 @@ describe("LogsPanel", () => {
 		};
 		await TestBed.configureTestingModule({
 			imports: [LogsPanel],
-			providers: [{ provide: DockerService, useValue: docker }],
+			providers: [{ provide: DockerService, useValue: docker }, { provide: SseService, useValue: sse }],
 		}).compileComponents();
 
 		const fixture = TestBed.createComponent(LogsPanel);
