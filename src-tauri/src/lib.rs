@@ -1,7 +1,8 @@
 mod app_info;
 mod compose;
 mod docker;
-mod project_manager;\nmod process_output;
+mod project_manager;
+mod process_output;
 
 use specta_typescript::Typescript;
 use tauri_specta::{collect_commands, Builder};
