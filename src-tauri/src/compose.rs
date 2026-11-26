@@ -369,11 +369,9 @@ fn run_docker_streaming(
         });
     }
 
-    Ok(if output_lines.is_empty() {
-        "Commande exécutée.".to_string()
-    } else {
-        output_lines.join("\n")
-    })
+    // Successful command output is already available in the live console.
+    // Keep the command result short so it can be used as a user-facing notice.
+    Ok(String::new())
 }
 
 fn output_text(output: Output) -> String {
