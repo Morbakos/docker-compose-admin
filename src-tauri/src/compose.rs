@@ -7,6 +7,7 @@ use std::{
     process::{Child, Command, Output, Stdio},
     sync::{Mutex, OnceLock},
 };
+use crate::app_error::AppError;
 use crate::process_output::forward_process_output;
 
 static WATCH_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
