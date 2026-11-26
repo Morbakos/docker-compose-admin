@@ -1,3 +1,4 @@
+mod app_error;
 mod app_info;
 mod compose;
 mod docker;

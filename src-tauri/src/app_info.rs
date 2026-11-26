@@ -33,7 +33,7 @@ pub fn get_build_info() -> BuildInfo {
     }
 }
 
-fn configured_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, String> {
+fn configured_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, crate::app_error::AppError> {
     let public_key = option_env!("TAURI_UPDATER_PUBLIC_KEY")
         .filter(|key| !key.trim().is_empty())
         .ok_or_else(|| "La clé publique de mise à jour n'est pas configurée dans cette version.".to_string())?;
@@ -48,7 +48,7 @@ fn configured_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, 
 
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
+pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, crate::app_error::AppError> {
     let update = configured_updater(&app)?
         .check()
         .await
@@ -62,7 +62,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, Stri
 
 #[tauri::command]
 #[specta::specta]
-pub async fn install_update(app: AppHandle, expected_version: String) -> Result<(), String> {
+pub async fn install_update(app: AppHandle, expected_version: String) -> Result<(), crate::app_error::AppError> {
     let update = configured_updater(&app)?
         .check()
         .await
@@ -70,7 +70,7 @@ pub async fn install_update(app: AppHandle, expected_version: String) -> Result<
         .ok_or_else(|| "Aucune mise à jour n'est actuellement disponible.".to_string())?;
 
     if update.version != expected_version {
-        return Err("La version disponible a changé. Vérifiez à nouveau les mises à jour.".to_string());
+        return Err("La version disponible a changé. Vérifiez à nouveau les mises à jour.".into());
     }
 
     update

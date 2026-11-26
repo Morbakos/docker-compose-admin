@@ -116,43 +116,21 @@ function normalize(text: string): string {
 	return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
 }
 
-function classifyLegacyError(text: string): AppErrorCode {
-	const value = normalize(text);
-	if (value.includes("docker cli introuvable") || value.includes("executable file not found") || value.includes("command not found: docker")) return "DOCKER_CLI_NOT_FOUND";
-	if (value.includes("pull access denied") || value.includes("failed to pull")) return "IMAGE_PULL_FAILED";
-	if (value.includes("permission denied") || value.includes("access denied") || value.includes("operation not permitted")) return "DOCKER_PERMISSION_DENIED";
-	if (value.includes("cannot connect to the docker daemon") || value.includes("docker daemon") || value.includes("docker engine ne repond pas") || value.includes("docker n'est pas demarre")) return "DOCKER_UNAVAILABLE";
-	if (value.includes("port is already allocated") || value.includes("address already in use") || value.includes("port") && value.includes("already in use")) return "PORT_ALREADY_IN_USE";
-	if (value.includes("yaml") || value.includes("compose file") && (value.includes("invalid") || value.includes("not found")) || value.includes("configuration compose json invalide")) return "COMPOSE_CONFIGURATION_INVALID";
-	if (value.includes("pull access denied") || value.includes("failed to pull") || value.includes("pulling")) return "IMAGE_PULL_FAILED";
-	if (value.includes("build") && (value.includes("failed") || value.includes("error"))) return "IMAGE_BUILD_FAILED";
-	if (value.includes("timed out") || value.includes("timeout") || value.includes("delai depasse")) return "OPERATION_TIMEOUT";
-	if (value.includes("dossier inaccessible") || value.includes("no such file or directory") || value.includes("path not found")) return "PROJECT_NOT_ACCESSIBLE";
-	if (value.includes("projet non enregistre") || value.includes("projet enregistre introuvable")) return "PROJECT_NOT_REGISTERED";
-	if (value.includes("selection des fichiers compose") || value.includes("selection compose invalide")) return "COMPOSE_SELECTION_INVALID";
-	if (value.includes("mise a jour") && (value.includes("download") || value.includes("install"))) return "UPDATE_INSTALL_FAILED";
-	if (value.includes("mise a jour") && (value.includes("check") || value.includes("verification"))) return "UPDATE_CHECK_FAILED";
-	if (value.includes("service") && (value.includes("failed") || value.includes("error"))) return "SERVICE_ACTION_FAILED";
-	if (value.includes("restart") || value.includes("redemarrage")) return "ENVIRONMENT_RESTART_FAILED";
-	if (value.includes("start") || value.includes("demarrage") || value.includes("up")) return "ENVIRONMENT_START_FAILED";
-	if (value.includes("stop") || value.includes("arret")) return "ENVIRONMENT_STOP_FAILED";
-	if (value.includes("sauvegarde") || value.includes("database") || value.includes("sqlite")) return "PREFERENCES_SAVE_FAILED";
-	return "UNKNOWN_ERROR";
-}
-
 @Injectable({ providedIn: "root" })
 export class AppErrorCatalogService {
 	getCode(error: unknown): AppErrorCode {
-		if (error && typeof error === "object" && "code" in error) {
-			const code = (error as AppErrorPayload).code;
-			if (code && knownCodes[code]) return knownCodes[code];
-		}
-		return classifyLegacyError(extractErrorText(error));
+		if (!error || typeof error !== "object" || !("code" in error)) return "UNKNOWN_ERROR";
+		const code = (error as AppErrorPayload).code;
+		return code && Object.prototype.hasOwnProperty.call(messages, code)
+			? code as AppErrorCode
+			: "UNKNOWN_ERROR";
 	}
 
 	getUserMessage(error: unknown): string {
 		const text = extractErrorText(error).trim();
-		if (safeUserMessages.some((message) => normalize(text).includes(normalize(message)))) return text;
+		if (typeof error === "string" && safeUserMessages.some((message) => normalize(text).includes(normalize(message)))) {
+			return text;
+		}
 		return messages[this.getCode(error)];
 	}
 }

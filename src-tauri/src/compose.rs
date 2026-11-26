@@ -42,10 +42,10 @@ fn validate_selected_services(
     project: &ComposeProject,
     selected_services: &[String],
     required: bool,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, crate::app_error::AppError> {
     if selected_services.is_empty() {
         return if required {
-            Err("Sélectionnez au moins un service.".to_string())
+            Err("Sélectionnez au moins un service.".into())
         } else {
             Ok(Vec::new())
         };
@@ -56,7 +56,7 @@ fn validate_selected_services(
         .iter()
         .any(|service| !available.contains(service.as_str()))
     {
-        return Err("La sélection contient un service inconnu pour ce projet.".to_string());
+        return Err("La sélection contient un service inconnu pour ce projet.".into());
     }
 
     let mut unique = BTreeSet::new();
@@ -71,7 +71,7 @@ fn start_watch_process(
     project: &ComposeProject,
     selected_services: &[String],
     app: tauri::AppHandle,
-) -> Result<String, String> {
+) -> Result<String, crate::app_error::AppError> {
     stop_watch_process(&project.directory);
     let mut args = compose_base_args(project);
     args.extend([
@@ -175,7 +175,7 @@ fn collect_compose_files(
     directory: &Path,
     depth: usize,
     files: &mut Vec<PathBuf>,
-) -> Result<(), String> {
+) -> Result<(), crate::app_error::AppError> {
     if depth > MAX_SCAN_DEPTH || files.len() >= MAX_COMPOSE_FILES {
         return Ok(());
     }
@@ -293,7 +293,7 @@ fn compose_base_args(project: &ComposeProject) -> Vec<String> {
     args
 }
 
-fn run_docker(args: &[String]) -> Result<Output, String> {
+fn run_docker(args: &[String]) -> Result<Output, crate::app_error::AppError> {
     let output = Command::new("docker")
         .args(args)
         .output()
@@ -310,15 +310,15 @@ fn run_docker(args: &[String]) -> Result<Output, String> {
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let details = if stderr.is_empty() { stdout } else { stderr };
 
-        return Err(if details.is_empty() {
+        return Err(AppError::from(if details.is_empty() {
             format!(
                 "Docker a quitté avec le code {}.",
                 output.status.code().unwrap_or(-1)
             )
         } else {
             details
-        });
-    }
+        }));
+    }/
 
     Ok(output)
 }
@@ -329,7 +329,7 @@ fn run_docker_streaming(
     app: tauri::AppHandle,
     project_directory: String,
     operation: &str,
-) -> Result<String, String> {
+) -> Result<String, crate::app_error::AppError> {
     let mut child = Command::new("docker")
         .args(args)
         .stdin(Stdio::null())
@@ -362,12 +362,12 @@ fn run_docker_streaming(
 
     if !status.success() {
         let details = output_lines.join("\n");
-        return Err(if details.trim().is_empty() {
+        return Err(AppError::from(if details.trim().is_empty() {
             format!("Docker a quitté avec le code {}.", status.code().unwrap_or(-1))
         } else {
             details
-        });
-    }
+        }));
+    }/
 
     // Successful command output is already available in the live console.
     // Keep the command result short so it can be used as a user-facing notice.
@@ -386,7 +386,7 @@ fn output_text(output: Output) -> String {
     }
 }
 
-pub(crate) fn compose_services(project: &ComposeProject) -> Result<Vec<String>, String> {
+pub(crate) fn compose_services(project: &ComposeProject) -> Result<Vec<String>, crate::app_error::AppError> {
     let mut args = compose_base_args(project);
     args.extend(["config".to_string(), "--services".to_string()]);
     let output = run_docker(&args)?;
@@ -402,7 +402,7 @@ pub(crate) fn compose_services(project: &ComposeProject) -> Result<Vec<String>, 
     Ok(services)
 }
 
-pub(crate) fn compose_watch_services(project: &ComposeProject) -> Result<Vec<String>, String> {
+pub(crate) fn compose_watch_services(project: &ComposeProject) -> Result<Vec<String>, crate::app_error::AppError> {
     let mut args = compose_base_args(project);
     args.extend(["config".to_string(), "--format".to_string(), "json".to_string()]);
     let output = run_docker(&args)?;
@@ -480,13 +480,13 @@ fn project_status(project: &ComposeProject) -> String {
     project_status_from_output(&String::from_utf8_lossy(&output.stdout))
 }
 
-pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, String> {
+pub fn scan_directory(root_directory: &str) -> Result<Vec<ComposeProject>, crate::app_error::AppError> {
     let root = PathBuf::from(root_directory)
         .canonicalize()
         .map_err(|error| format!("Dossier inaccessible : {error}"))?;
 
     if !root.is_dir() {
-        return Err("Le chemin sélectionné n'est pas un dossier.".to_string());
+        return Err("Le chemin sélectionné n'est pas un dossier.".into());
     }
 
     let mut compose_files = Vec::new();
@@ -553,7 +553,7 @@ fn resolve_project(
     app: &tauri::AppHandle,
     root_directory: &str,
     project_directory: &str,
-) -> Result<ComposeProject, String> {
+) -> Result<ComposeProject, crate::app_error::AppError> {
     let root = PathBuf::from(root_directory)
         .canonicalize()
         .map_err(|error| format!("Dossier racine inaccessible : {error}"))?;
@@ -562,7 +562,7 @@ fn resolve_project(
         .map_err(|error| format!("Projet introuvable : {error}"))?;
 
     if !selected.starts_with(&root) || !selected.is_dir() {
-        return Err("Le projet sélectionné est en dehors du dossier autorisé.".to_string());
+        return Err("Le projet sélectionné est en dehors du dossier autorisé.".into());
     }
 
     crate::project_manager::resolve_registered_project(
@@ -574,7 +574,7 @@ fn resolve_project(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<String>, String> {
+pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<String>, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         use tauri_plugin_dialog::DialogExt;
 
@@ -594,7 +594,7 @@ pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<Stri
 
 #[tauri::command]
 #[specta::specta]
-pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<ComposeProject>, String> {
+pub async fn scan_compose_directory(root_directory: String) -> Result<Vec<ComposeProject>, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || scan_directory(&root_directory))
         .await
         .map_err(|error| format!("L'analyse du dossier a échoué : {error}"))?
@@ -608,7 +608,7 @@ pub async fn run_compose_action(
     project_directory: String,
     action: String,
     services: Vec<String>,
-) -> Result<String, String> {
+) -> Result<String, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&app, &root_directory, &project_directory)?;
         let selected_services = validate_selected_services(
@@ -637,7 +637,7 @@ pub async fn run_compose_action(
                 args.extend(selected_services);
                 run_docker_streaming(&args, app.clone(), project.directory.clone(), "build")
             }
-            _ => Err("Action non autorisée.".to_string()),
+            _ => Err("Action non autorisée.".into()),
         }
     })
     .await
@@ -650,7 +650,7 @@ pub async fn start_compose_logs(
     app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
-) -> Result<(), String> {
+) -> Result<(), crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let project = resolve_project(&app, &root_directory, &project_directory)?;
         stop_log_process(&project.directory);
@@ -718,10 +718,10 @@ pub async fn start_compose_logs(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn stop_compose_logs(project_directory: String) -> Result<(), String> {
+pub async fn stop_compose_logs(project_directory: String) -> Result<(), crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         if project_directory.trim().is_empty() {
-            return Err("Répertoire de projet invalide.".to_string());
+            return Err("Répertoire de projet invalide.".into());
         }
 
         stop_log_process(&project_directory);
@@ -813,7 +813,7 @@ fn container_list(
     app: &tauri::AppHandle,
     root_directory: &str,
     project_directory: &str,
-) -> Result<Vec<ComposeContainer>, String> {
+) -> Result<Vec<ComposeContainer>, crate::app_error::AppError> {
     let project = resolve_project(app, root_directory, project_directory)?;
     let mut args = compose_base_args(&project);
     args.extend(
@@ -895,7 +895,7 @@ pub async fn get_compose_containers(
     app: tauri::AppHandle,
     root_directory: String,
     project_directory: String,
-) -> Result<Vec<ComposeContainer>, String> {
+) -> Result<Vec<ComposeContainer>, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         container_list(&app, &root_directory, &project_directory)
     })
@@ -911,21 +911,21 @@ pub async fn run_compose_service_action(
     project_directory: String,
     service: String,
     action: String,
-) -> Result<String, String> {
+) -> Result<String, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         if service.is_empty()
             || !service
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
         {
-            return Err("Nom de service invalide.".to_string());
+            return Err("Nom de service invalide.".into());
         }
         let project = resolve_project(&app, &root_directory, &project_directory)?;
         let verb = match action.as_str() {
             "start" => "start",
             "stop" => "stop",
             "restart" => "restart",
-            _ => return Err("Action de service non autorisée.".to_string()),
+            _ => return Err("Action de service non autorisée.".into()),
         };
         let mut args = compose_base_args(&project);
         args.extend([verb.to_string(), service]);

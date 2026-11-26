@@ -3,7 +3,7 @@ use rusqlite::{params, Connection};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 use tauri::{AppHandle, Manager};
 
-fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn database_path(app: &AppHandle) -> Result<PathBuf, crate::app_error::AppError> {
     let directory = app.path().app_data_dir()
         .map_err(|error| format!("Dossier de données indisponible : {error}"))?;
     fs::create_dir_all(&directory)
@@ -11,7 +11,7 @@ fn database_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(directory.join("compose-admin.sqlite3"))
 }
 
-fn open_database(app: &AppHandle) -> Result<Connection, String> {
+fn open_database(app: &AppHandle) -> Result<Connection, crate::app_error::AppError> {
     let connection = Connection::open(database_path(app)?)
         .map_err(|error| format!("Ouverture de la base locale impossible : {error}"))?;
     connection.execute_batch(
@@ -27,14 +27,14 @@ fn open_database(app: &AppHandle) -> Result<Connection, String> {
     Ok(connection)
 }
 
-fn validate_compose_file_selection(available: &[String], selected: &[String]) -> Result<Vec<String>, String> {
+fn validate_compose_file_selection(available: &[String], selected: &[String]) -> Result<Vec<String>, crate::app_error::AppError> {
     if selected.is_empty() {
-        return Err("Sélectionnez au moins un fichier Compose.".to_string());
+        return Err("Sélectionnez au moins un fichier Compose.".into());
     }
     let available: std::collections::BTreeSet<&str> = available.iter().map(String::as_str).collect();
     let mut unique = std::collections::BTreeSet::new();
     if selected.iter().any(|file| !available.contains(file.as_str()) || !unique.insert(file.as_str())) {
-        return Err("La sélection contient un fichier Compose inconnu ou en double.".to_string());
+        return Err("La sélection contient un fichier Compose inconnu ou en double.".into());
     }
     Ok(selected.to_vec())
 }
@@ -47,7 +47,7 @@ fn retain_available_services(available: &[String], selected: Vec<String>) -> Vec
         .collect()
 }
 
-fn store_project(connection: &Connection, project: &ComposeProject) -> Result<(), String> {
+fn store_project(connection: &Connection, project: &ComposeProject) -> Result<(), crate::app_error::AppError> {
     let project_json = serde_json::to_string(project)
         .map_err(|error| format!("Sérialisation du projet impossible : {error}"))?;
     let selected_services = serde_json::to_string(&project.selected_services)
@@ -63,7 +63,7 @@ fn store_project(connection: &Connection, project: &ComposeProject) -> Result<()
     Ok(())
 }
 
-fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
+fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, crate::app_error::AppError> {
     let connection = open_database(app)?;
     let mut statement = connection.prepare(
         "SELECT directory, root_directory, project_json, selected_services_json
@@ -85,7 +85,7 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
     }
     drop(statement);
 
-    let mut scans: BTreeMap<String, Result<Vec<ComposeProject>, String>> = BTreeMap::new();
+    let mut scans: BTreeMap<String, Result<Vec<ComposeProject>, crate::app_error::AppError>> = BTreeMap::new();
     let mut result = Vec::new();
     for (directory, root_directory, project_json, selected_json) in stored {
         let selected_services: Vec<String> = serde_json::from_str(&selected_json).unwrap_or_default();
@@ -134,7 +134,7 @@ fn list_projects(app: &AppHandle) -> Result<Vec<ComposeProject>, String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn list_registered_projects(app: AppHandle) -> Result<Vec<ComposeProject>, String> {
+pub async fn list_registered_projects(app: AppHandle) -> Result<Vec<ComposeProject>, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || list_projects(&app))
         .await
         .map_err(|error| format!("Chargement des projets impossible : {error}"))?
@@ -142,20 +142,20 @@ pub async fn list_registered_projects(app: AppHandle) -> Result<Vec<ComposeProje
 
 #[tauri::command]
 #[specta::specta]
-pub async fn add_registered_projects(app: AppHandle, directory: String) -> Result<Vec<ComposeProject>, String> {
+pub async fn add_registered_projects(app: AppHandle, directory: String) -> Result<Vec<ComposeProject>, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let root = PathBuf::from(&directory).canonicalize()
             .map_err(|error| format!("Dossier inaccessible : {error}"))?;
         if !root.is_dir() {
-            return Err("Le chemin sélectionné n'est pas un dossier.".to_string());
+            return Err("Le chemin sélectionné n'est pas un dossier.".into());
         }
         let root = root.to_string_lossy().to_string();
         let mut discovered = scan_directory(&root)?;
         if discovered.is_empty() {
-            return Err("Aucun fichier Docker Compose reconnu dans ce dossier.".to_string());
+            return Err("Aucun fichier Docker Compose reconnu dans ce dossier.".into());
         }
         if discovered.len() > 1 {
-            return Err("Plusieurs projets Compose ont été détectés. Sélectionnez le dossier d'un seul projet pour l'ajouter individuellement.".to_string());
+            return Err("Plusieurs projets Compose ont été détectés. Sélectionnez le dossier d'un seul projet pour l'ajouter individuellement.".into());
         }
         let connection = open_database(&app)?;
         for project in &mut discovered {
@@ -171,7 +171,7 @@ pub async fn add_registered_projects(app: AppHandle, directory: String) -> Resul
 
 #[tauri::command]
 #[specta::specta]
-pub async fn remove_registered_project(app: AppHandle, directory: String) -> Result<(), String> {
+pub async fn remove_registered_project(app: AppHandle, directory: String) -> Result<(), crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let connection = open_database(&app)?;
         connection.execute("DELETE FROM projects WHERE directory = ?1", params![directory])
@@ -185,7 +185,7 @@ pub(crate) fn resolve_registered_project(
     app: &AppHandle,
     root_directory: &str,
     project_directory: &str,
-) -> Result<ComposeProject, String> {
+) -> Result<ComposeProject, crate::app_error::AppError> {
     let connection = open_database(app)?;
     let (stored_root, project_json, selected_services_json): (String, String, String) = connection.query_row(
         "SELECT root_directory, project_json, selected_services_json FROM projects WHERE directory = ?1",
@@ -193,7 +193,7 @@ pub(crate) fn resolve_registered_project(
         |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     ).map_err(|_| "Projet non enregistré dans Compose Admin.".to_string())?;
     if stored_root != root_directory {
-        return Err("Le dossier racine ne correspond pas au projet enregistré.".to_string());
+        return Err("Le dossier racine ne correspond pas au projet enregistré.".into());
     }
     let cached: ComposeProject = serde_json::from_str(&project_json)
         .map_err(|error| format!("Métadonnées du projet invalides : {error}"))?;
@@ -202,7 +202,7 @@ pub(crate) fn resolve_registered_project(
         .ok_or_else(|| "Ce projet ne contient plus de fichier Docker Compose reconnu.".to_string())?;
     let available: std::collections::BTreeSet<String> = current.available_compose_files.iter().cloned().collect();
     if cached.compose_files.is_empty() || cached.compose_files.iter().any(|file| !available.contains(file)) {
-        return Err("La sélection des fichiers Compose est invalide. Modifiez-la puis réessayez.".to_string());
+        return Err("La sélection des fichiers Compose est invalide. Modifiez-la puis réessayez.".into());
     }
     let mut project = current;
     project.compose_files = cached.compose_files;
@@ -219,7 +219,7 @@ pub async fn save_project_compose_files(
     app: AppHandle,
     directory: String,
     files: Vec<String>,
-) -> Result<ComposeProject, String> {
+) -> Result<ComposeProject, crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let connection = open_database(&app)?;
         let (json, selected_json): (String, String) = connection.query_row(
@@ -241,7 +241,7 @@ pub async fn save_project_compose_files(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn save_project_services(app: AppHandle, directory: String, services: Vec<String>) -> Result<(), String> {
+pub async fn save_project_services(app: AppHandle, directory: String, services: Vec<String>) -> Result<(), crate::app_error::AppError> {
     tauri::async_runtime::spawn_blocking(move || {
         let connection = open_database(&app)?;
         let json: String = connection.query_row(
@@ -252,7 +252,7 @@ pub async fn save_project_services(app: AppHandle, directory: String, services: 
         let project: ComposeProject = serde_json::from_str(&json)
             .map_err(|error| format!("Métadonnées du projet invalides : {error}"))?;
         if services.iter().any(|service| !project.services.contains(service)) {
-            return Err("La sélection contient un service inconnu pour ce projet.".to_string());
+            return Err("La sélection contient un service inconnu pour ce projet.".into());
         }
         let services = retain_available_services(&project.services, services);
         let selected = serde_json::to_string(&services)
