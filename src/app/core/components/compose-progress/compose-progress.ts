@@ -10,7 +10,7 @@ import { ChangeDetectionStrategy,
 	signal,
 	viewChild,
 } from "@angular/core";
-import { DockerService, type ComposeOutput } from "@services";
+import { SseService, type ComposeOutput } from "@services";
 import { appendComposeOutput } from "../compose-output-buffer";
 
 @Component({
@@ -21,11 +21,11 @@ import { appendComposeOutput } from "../compose-output-buffer";
 	templateUrl: "./compose-progress.html",
 })
 export class ComposeProgress {
-	readonly projectDirectory = input.required<string>();
+	readonly projectDirectory = input.required<string>();\n\treadonly source = input<ComposeOutput["source"]>("watch");\n\treadonly title = input("Activité au démarrage");
 	readonly lines = signal<ComposeOutput[]>([]);
 	readonly fullscreen = signal(false);
 
-	private readonly docker = inject(DockerService);
+	private readonly sse = inject(SseService);
 	private readonly console = viewChild<ElementRef<HTMLDivElement>>("console");
 	private unlisten?: () => void;
 

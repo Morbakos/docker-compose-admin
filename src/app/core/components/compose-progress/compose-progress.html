@@ -1,7 +1,7 @@
 <section class="compose-progress" [class.is-fullscreen]="fullscreen()">
 	<header class="progress-header">
 		<div class="progress-title">
-			<strong>Activité au démarrage</strong>
+			<strong>{{ title() }}</strong>
 			<span class="line-count">{{ lines().length }} lignes</span>
 		</div>
 		<div class="progress-actions">

@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy,
 	signal,
 	viewChild,
 } from "@angular/core";
-import { DockerService, type ComposeOutput } from "@services";
+import { DockerService, SseService, type ComposeOutput } from "@services";
 import { appendComposeOutput } from "../compose-output-buffer";
 
 @Component({
@@ -25,7 +25,7 @@ export class LogsPanel {
 	readonly lines = signal<ComposeOutput[]>([]);
 	readonly error = signal<string | null>(null);
 
-	private readonly docker = inject(DockerService);
+	private readonly docker = inject(DockerService);\n\tprivate readonly sse = inject(SseService);
 	private readonly console = viewChild<ElementRef<HTMLElement>>("console");
 
 	constructor() {
@@ -39,7 +39,7 @@ export class LogsPanel {
 			this.lines.set([]);
 			this.error.set(null);
 
-			this.docker.listenComposeOutput((output) => {
+			this.sse.listenComposeOutput((output) => {
 				this.lines.update((current) => appendComposeOutput(current, output, projectDirectory, "container"));
 			}).then(async (stopListening) => {
 				if (cancelled) {
