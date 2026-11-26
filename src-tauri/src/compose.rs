@@ -625,7 +625,7 @@ pub async fn run_compose_action(
                 let mut args = compose_base_args(&project);
                 args.push("stop".to_string());
                 args.extend(selected_services);
-                run_docker(&args).map(output_text)
+                run_docker_streaming(&args, app.clone(), project.directory.clone(), "stop")
             }
             "pull" => {
                 let mut args = compose_base_args(&project);
@@ -931,7 +931,7 @@ pub async fn run_compose_service_action(
         };
         let mut args = compose_base_args(&project);
         args.extend([verb.to_string(), service]);
-        run_docker(&args).map(output_text)
+        run_docker_streaming(&args, app.clone(), project.directory.clone(), &format!("service_{verb}"))
     })
     .await
     .map_err(|e| format!("Action service échouée : {e}"))?

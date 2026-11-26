@@ -8,17 +8,22 @@ describe("LogsPanel", () => {
 	it("starts the container log stream and displays only matching project events", async () => {
 		let emit: ((output: ComposeOutput) => void) | undefined;
 		const unlisten = vi.fn();
-		const docker = {
+		const sse = {
 			listenComposeOutput: vi.fn((callback: (output: ComposeOutput) => void) => {
 				emit = callback;
 				return Promise.resolve(unlisten);
 			}),
+		};
+		const docker = {
 			startComposeLogs: vi.fn().mockResolvedValue(undefined),
 			stopComposeLogs: vi.fn().mockResolvedValue(undefined),
 		};
 		await TestBed.configureTestingModule({
 			imports: [LogsPanel],
-			providers: [{ provide: DockerService, useValue: docker }, { provide: SseService, useValue: sse }],
+			providers: [
+				{ provide: DockerService, useValue: docker },
+				{ provide: SseService, useValue: sse },
+			],
 		}).compileComponents();
 
 		const fixture = TestBed.createComponent(LogsPanel);
