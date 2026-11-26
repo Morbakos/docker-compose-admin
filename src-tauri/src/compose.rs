@@ -3,27 +3,14 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     sync::{Mutex, OnceLock},
-    thread,
-    time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::Emitter;
+use crate::process_output::forward_process_output;
 
 static WATCH_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
 static LOG_PROCESSES: OnceLock<Mutex<BTreeMap<String, Child>>> = OnceLock::new();
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ComposeOutput {
-    project_directory: String,
-    stream: String,
-    source: String,
-    line: String,
-    timestamp: u128,
-}
 
 fn watch_processes() -> &'static Mutex<BTreeMap<String, Child>> {
     WATCH_PROCESSES.get_or_init(|| Mutex::new(BTreeMap::new()))
@@ -115,11 +102,11 @@ fn start_watch_process(
 	// Lecture de stdout et stderr
 	// Et "forward" de ces logs vers le front
     if let Some(stdout) = stdout {
-        forward_compose_output(stdout, app.clone(), project_directory.clone(), "watch", "stdout");
+        forward_process_output(stdout, app.clone(), project_directory.clone(), "watch", None, "stdout");
     }
     
 	if let Some(stderr) = stderr {
-        forward_compose_output(stderr, app.clone(), project_directory.clone(), "watch", "stderr");
+        forward_process_output(stderr, app.clone(), project_directory.clone(), "watch", None, "stderr");
     }
 
     watch_processes()
@@ -127,41 +114,6 @@ fn start_watch_process(
         .map_err(|_| "Gestionnaire de surveillance indisponible.".to_string())?
         .insert(project.directory.clone(), child);
     Ok("Environnement démarré avec la synchronisation automatique du code.".to_string())
-}
-
-fn forward_compose_output<R: std::io::Read + Send + 'static>(
-    reader: R,
-    app: tauri::AppHandle,
-    project_directory: String,
-    source: &'static str,
-    stream: &'static str,
-) {
-    thread::spawn(move || {
-        let reader = BufReader::new(reader);
-        for line in reader.lines() {
-            let Ok(line) = line else {
-                break;
-            };
-
-            let timestamp = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis();
-
-            let output = ComposeOutput {
-                project_directory: project_directory.clone(),
-                stream: stream.to_string(),
-                source: source.to_string(),
-                line,
-                timestamp,
-            };
-
-            if let Err(error) = app.emit("compose-output", output) {
-                eprintln!("Failed to emit compose output event: {error}");
-                break;
-            }
-        }
-    });
 }
 
 const MAX_SCAN_DEPTH: usize = 16;
@@ -369,6 +321,59 @@ fn run_docker(args: &[String]) -> Result<Output, String> {
     }
 
     Ok(output)
+}
+
+
+fn run_docker_streaming(
+    args: &[String],
+    app: tauri::AppHandle,
+    project_directory: String,
+    operation: &str,
+) -> Result<String, String> {
+    let mut child = Command::new("docker")
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .env("BUILDKIT_PROGRESS", "plain")
+        .spawn()
+        .map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "Docker CLI introuvable. Installez Docker Desktop ou Docker Engine et vérifiez que « docker » est disponible dans le PATH.".to_string()
+            } else {
+                format!("Impossible de démarrer Docker : {error}")
+            }
+        })?;
+
+    let stdout = child.stdout.take().map(|reader| {
+        forward_process_output(reader, app.clone(), project_directory.clone(), "action", Some(operation.to_string()), "stdout")
+    });
+    let stderr = child.stderr.take().map(|reader| {
+        forward_process_output(reader, app, project_directory, "action", Some(operation.to_string()), "stderr")
+    });
+
+    let status = child.wait().map_err(|error| format!("Impossible d'attendre la fin de Docker : {error}"))?;
+    let mut output_lines = Vec::new();
+    for handle in [stdout, stderr].into_iter().flatten() {
+        if let Ok(mut lines) = handle.join() {
+            output_lines.append(&mut lines);
+        }
+    }
+
+    if !status.success() {
+        let details = output_lines.join("\\n");
+        return Err(if details.trim().is_empty() {
+            format!("Docker a quitté avec le code {}.", status.code().unwrap_or(-1))
+        } else {
+            details
+        });
+    }
+
+    Ok(if output_lines.is_empty() {
+        "Commande exécutée.".to_string()
+    } else {
+        output_lines.join("\\n")
+    })
 }
 
 fn output_text(output: Output) -> String {
@@ -626,13 +631,13 @@ pub async fn run_compose_action(
                 let mut args = compose_base_args(&project);
                 args.push("pull".to_string());
                 args.extend(selected_services);
-                run_docker(&args).map(output_text)
+                run_docker_streaming(&args, app.clone(), project.directory.clone(), "pull")
             }
             "build" => {
                 let mut args = compose_base_args(&project);
                 args.push("build".to_string());
                 args.extend(selected_services);
-                run_docker(&args).map(output_text)
+                run_docker_streaming(&args, app.clone(), project.directory.clone(), "build")
             }
             _ => Err("Action non autorisée.".to_string()),
         }
@@ -682,20 +687,22 @@ pub async fn start_compose_logs(
         let directory = project.directory.clone();
 
         if let Some(stdout) = stdout {
-            forward_compose_output(
+            forward_process_output(
                 stdout,
                 app.clone(),
                 directory.clone(),
                 "container",
+                None,
                 "stdout",
             );
         }
         if let Some(stderr) = stderr {
-            forward_compose_output(
+            forward_process_output(
                 stderr,
                 app.clone(),
                 directory.clone(),
                 "container",
+                None,
                 "stderr",
             );
         }

@@ -25,7 +25,8 @@ export interface UpdateInfo {
 }
 export interface ComposeOutput {
 	projectDirectory: string;
-	source: "watch" | "container";
+	source: "watch" | "container" | "action";
+	operation?: string;
 	stream: "stdout" | "stderr";
 	line: string;
 	timestamp: number;
