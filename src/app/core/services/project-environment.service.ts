@@ -69,7 +69,7 @@ export class ProjectEnvironmentService {
 			this.setNotice("success", result || this.actionSuccess(action, project.name));
 			await this.refreshAfterAction();
 		} catch (error) {
-			this.setNotice("error", this.errorMessage(error));
+			this.setNotice("error", error);
 		} finally {
 			this.busyDirectory.set(null);
 		}
@@ -79,7 +79,7 @@ export class ProjectEnvironmentService {
 		try {
 			await this.docker.openExternalUrl(url);
 		} catch (error) {
-			this.setNotice("error", this.errorMessage(error));
+			this.setNotice("error", error);
 		}
 	}
 
@@ -90,7 +90,6 @@ export class ProjectEnvironmentService {
 			this.setNotice("error", "Action effectuée, mais impossible d’actualiser l’état du projet : " + this.errorCatalog.getUserMessage(error));
 		}
 	}
-
 
 	private actionProgress(action: ComposeAction, name: string): string {
 		const labels: Record<ComposeAction, string> = {
