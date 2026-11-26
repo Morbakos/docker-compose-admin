@@ -70,6 +70,24 @@ describe("ProjectEnvironmentService", () => {
 		expect(environment.notice()?.text).toBe("Stopped");
 	});
 
+	it("preserves structured backend error codes when displaying action failures", async () => {
+		const docker = {
+			runAction: vi.fn().mockRejectedValue({
+				code: "DOCKER_UNAVAILABLE",
+				message: "unsafe backend message",
+				details: "Cannot connect to the Docker daemon",
+			}),
+		};
+		const { environment } = await setup(docker);
+
+		await environment.runAction("stop");
+
+		expect(environment.notice()?.kind).toBe("error");
+		expect(environment.notice()?.text).toContain("Docker n'est pas démarré");
+		expect(environment.notice()?.text).not.toContain("unsafe backend message");
+		expect(environment.notice()?.text).not.toContain("Cannot connect");
+	});
+
 	it("distinguishes a successful action from a failed status refresh", async () => {
 		const docker = { runAction: vi.fn().mockResolvedValue("Environment stopped") };
 		const { environment, registry } = await setup(docker);

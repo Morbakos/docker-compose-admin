@@ -22,8 +22,11 @@ export class ProjectEnvironmentService {
 	readonly selectedProject = this.registry.selectedProject;
 	readonly selectedServices = this.registry.selectedServices;
 
-	setNotice(kind: NoticeKind, text: string): void {
-		this.notice.set({ kind, text: kind === "error" ? this.errorCatalog.getUserMessage(text) : text });
+	setNotice(kind: NoticeKind, value: unknown): void {
+		const text = kind === "error"
+			? this.errorCatalog.getUserMessage(value)
+			: typeof value === "string" ? value : String(value);
+		this.notice.set({ kind, text });
 	}
 
 	clearNotice(): void {
@@ -43,7 +46,7 @@ export class ProjectEnvironmentService {
 			this.setNotice("success", result || "Service " + container.service + " : " + action + " effectué.");
 			await this.refreshAfterAction();
 		} catch (error) {
-			this.setNotice("error", this.errorMessage(error));
+			this.setNotice("error", error);
 		} finally {
 			this.busyDirectory.set(null);
 		}
@@ -84,13 +87,10 @@ export class ProjectEnvironmentService {
 		try {
 			await this.registry.refresh();
 		} catch (error) {
-			this.setNotice("error", "Action effectuée, mais impossible d’actualiser l’état du projet : " + this.errorMessage(error));
+			this.setNotice("error", "Action effectuée, mais impossible d’actualiser l’état du projet : " + this.errorCatalog.getUserMessage(error));
 		}
 	}
 
-	private errorMessage(error: unknown): string {
-		return error instanceof Error ? error.message : String(error);
-	}
 
 	private actionProgress(action: ComposeAction, name: string): string {
 		const labels: Record<ComposeAction, string> = {
