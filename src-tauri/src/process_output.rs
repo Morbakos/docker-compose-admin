@@ -46,8 +46,9 @@ pub(crate) fn forward_process_output<R: Read + Send + 'static>(
                 timestamp,
             };
             if let Err(error) = app.emit("compose-output", output) {
+                // Keep draining the pipe even if the UI is no longer listening;
+                // otherwise the child process could block on a full stdout/stderr pipe.
                 eprintln!("Failed to emit process output event: {error}");
-                break;
             }
         }
         captured
