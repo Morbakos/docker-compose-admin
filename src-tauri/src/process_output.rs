@@ -53,3 +53,41 @@ pub(crate) fn forward_process_output<R: Read + Send + 'static>(
         captured
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ProcessOutput;
+
+    #[test]
+    fn serializes_operation_context_for_action_logs() {
+        let output = ProcessOutput {
+            project_directory: "/workspace/app".into(),
+            stream: "stderr".into(),
+            source: "action".into(),
+            operation: Some("build".into()),
+            line: "step failed".into(),
+            timestamp: 42,
+        };
+        let value = serde_json::to_value(output).expect("event should serialize");
+        assert_eq!(value["projectDirectory"], "/workspace/app");
+        assert_eq!(value["source"], "action");
+        assert_eq!(value["operation"], "build");
+        assert_eq!(value["stream"], "stderr");
+        assert_eq!(value["line"], "step failed");
+    }
+
+    #[test]
+    fn omits_operation_for_existing_watch_and_container_events() {
+        let output = ProcessOutput {
+            project_directory: "/workspace/app".into(),
+            stream: "stdout".into(),
+            source: "watch".into(),
+            operation: None,
+            line: "watch ready".into(),
+            timestamp: 43,
+        };
+        let value = serde_json::to_value(output).expect("event should serialize");
+        assert!(value.get("operation").is_none());
+        assert_eq!(value["source"], "watch");
+    }
+}

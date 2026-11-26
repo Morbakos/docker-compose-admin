@@ -25,7 +25,8 @@ export class LogsPanel {
 	readonly lines = signal<ComposeOutput[]>([]);
 	readonly error = signal<string | null>(null);
 
-	private readonly docker = inject(DockerService);\n\tprivate readonly sse = inject(SseService);
+	private readonly docker = inject(DockerService);
+	private readonly sse = inject(SseService);
 	private readonly console = viewChild<ElementRef<HTMLElement>>("console");
 
 	constructor() {

@@ -361,7 +361,7 @@ fn run_docker_streaming(
     }
 
     if !status.success() {
-        let details = output_lines.join("\\n");
+        let details = output_lines.join("\n");
         return Err(if details.trim().is_empty() {
             format!("Docker a quitté avec le code {}.", status.code().unwrap_or(-1))
         } else {
@@ -372,7 +372,7 @@ fn run_docker_streaming(
     Ok(if output_lines.is_empty() {
         "Commande exécutée.".to_string()
     } else {
-        output_lines.join("\\n")
+        output_lines.join("\n")
     })
 }
 
