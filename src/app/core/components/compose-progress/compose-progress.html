@@ -1,40 +1,6 @@
-<section class="compose-progress" [class.is-fullscreen]="fullscreen()">
-	<header class="progress-header">
-		<div class="progress-title">
-			<strong>{{ title() }}</strong>
-			<span class="line-count">{{ lines().length }} lignes</span>
-		</div>
-		<div class="progress-actions">
-			<button
-				type="button"
-				class="toolbar-button clear-button"
-				(click)="clearLogs()"
-				[disabled]="lines().length === 0"
-				aria-label="Vider les logs"
-				title="Vider les logs">
-				<span class="button-icon" aria-hidden="true">⌫</span>
-				<span>Vider</span>
-			</button>
-			<button
-				type="button"
-				class="toolbar-button fullscreen-button"
-				(click)="toggleFullscreen()"
-				[attr.aria-label]="fullscreen() ? 'Quitter le plein écran' : 'Afficher en plein écran'"
-				[attr.title]="fullscreen() ? 'Quitter le plein écran' : 'Afficher en plein écran'">
-				<span class="button-icon" aria-hidden="true">{{ fullscreen() ? '↙' : '⛶' }}</span>
-				<span>{{ fullscreen() ? 'Réduire' : 'Plein écran' }}</span>
-			</button>
-		</div>
-	</header>
-
-	<div class="console" #console>
-		@for (entry of lines(); track $index) {
-			<div class="log-line" [class.error]="entry.stream === 'stderr'">
-				<span class="timestamp">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
-				<span class="message">{{ entry.line }}</span>
-			</div>
-		} @empty {
-			<p class="empty-state">Les messages de démarrage apparaîtront ici.</p>
-		}
-	</div>
-</section>
+<app-action-console
+	[title]="title()"
+	[entries]="lines()"
+	[isRunning]="isRunning()"
+	(clear)="clearLogs()"
+/>

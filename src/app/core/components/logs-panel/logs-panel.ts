@@ -1,20 +1,11 @@
-import { DatePipe } from "@angular/common";
-import { ChangeDetectionStrategy,
-	afterRenderEffect,
-	Component,
-	effect,
-	ElementRef,
-	inject,
-	input,
-	signal,
-	viewChild,
-} from "@angular/core";
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from "@angular/core";
 import { DockerService, SseService, type ComposeOutput } from "@services";
 import { appendComposeOutput } from "../compose-output-buffer";
+import { ActionConsole } from "../action-console/action-console";
 
 @Component({
 	changeDetection: ChangeDetectionStrategy.OnPush,
-	imports: [DatePipe],
+	imports: [ActionConsole],
 	selector: "app-logs-panel",
 	styleUrl: "./logs-panel.scss",
 	templateUrl: "./logs-panel.html",
@@ -27,7 +18,6 @@ export class LogsPanel {
 
 	private readonly docker = inject(DockerService);
 	private readonly sse = inject(SseService);
-	private readonly console = viewChild<ElementRef<HTMLElement>>("console");
 
 	constructor() {
 		effect((onCleanup) => {
@@ -64,13 +54,6 @@ export class LogsPanel {
 				unlisten?.();
 				if (started) void this.docker.stopComposeLogs(projectDirectory);
 			});
-		});
-
-		afterRenderEffect(() => {
-			this.lines();
-			this.error();
-			const element = this.console()?.nativeElement;
-			if (element) element.scrollTop = element.scrollHeight;
 		});
 	}
 

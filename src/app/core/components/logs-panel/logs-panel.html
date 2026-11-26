@@ -1,18 +1,8 @@
-<section class="logs-panel">
-	<div class="heading">
-		<div>
-			<h2>Logs de l’environnement</h2>
-			<p>Flux en direct · actualisation instantanée</p>
-		</div>
-		<button type="button" class="clear-button" (click)="clearLogs()" [disabled]="lines().length === 0" aria-label="Effacer les logs">
-			<span aria-hidden="true">⌫</span> Effacer
-		</button>
-	</div>
-	@if (error(); as message) {
-		<p class="error-message">{{ message }}</p>
-	}
-	<pre #console>@for (entry of lines(); track $index) {<span class="log-line" [class.error]="entry.stream === 'stderr'"><span class="timestamp">{{ entry.timestamp | date:'HH:mm:ss' }}</span> {{ entry.line }}</span>
-}@empty {
-	<span class="muted">En attente des logs…</span>
-}</pre>
-</section>
+<app-action-console
+	title="Logs de l’environnement"
+	description="Flux en direct · actualisation instantanée"
+	[entries]="lines()"
+	[error]="error()"
+	[isRunning]="true"
+	(clear)="clearLogs()"
+/>
