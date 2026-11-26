@@ -48,5 +48,6 @@
 		<div class="info-row"><span>Fichiers actifs</span><strong>{{ project().composeFiles.length }}</strong></div>
 	</aside>
 </div>
-<app-compose-progress [projectDirectory]="project().directory" />\n<app-compose-progress [projectDirectory]="project().directory" source="action" title="Activité des opérations" [isRunning]="busy()" />
+<app-compose-progress [projectDirectory]="project().directory" />
+<app-compose-progress [projectDirectory]="project().directory" source="action" title="Activité des opérations" [isRunning]="busy()" />
 <app-logs-panel [rootDirectory]="project().rootDirectory" [projectDirectory]="project().directory" />
