@@ -1,0 +1,27 @@
+<section class="action-console" [class.is-fullscreen]="fullscreen()">
+	<header class="console-header">
+		<div class="console-title">
+			<strong>{{ title() }}</strong>
+			@if (description()) { <span>{{ description() }}</span> }
+			@if (isRunning()) { <span class="activity-indicator">En cours</span> }
+			<span class="line-count">{{ entries().length }} lignes</span>
+		</div>
+		<div class="console-actions">
+			<button type="button" (click)="clear.emit()" [disabled]="entries().length === 0" aria-label="Vider les logs">⌫ Vider</button>
+			<button type="button" (click)="toggleFullscreen()" [attr.aria-label]="fullscreen() ? 'Quitter le plein écran' : 'Afficher en plein écran'">
+				{{ fullscreen() ? '↙ Réduire' : '⛶ Plein écran' }}
+			</button>
+		</div>
+	</header>
+	@if (error(); as message) { <p class="error-message">{{ message }}</p> }
+	<div class="console-output" #console>
+		@for (entry of entries(); track $index) {
+			<div class="log-line" [class.error]="entry.stream === 'stderr'">
+				<span class="timestamp">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+				<span class="message">{{ entry.line }}</span>
+			</div>
+		} @empty {
+			<p class="empty-state">{{ isRunning() ? 'En attente des premiers messages…' : 'Aucun message pour le moment.' }}</p>
+		}
+	</div>
+</section>

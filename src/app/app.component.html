@@ -1,21 +1,158 @@
-<main class="container">
-  <h1>Welcome to Tauri + Angular!</h1>
-
-  <div class="row">
-    <a href="https://tauri.app" target="_blank">
-      <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-    </a>
-    <a href="https://angular.io" target="_blank">
-      <img src="/assets/angular.svg" class="logo angular" alt="Angular logo" />
-    </a>
-  </div>
-  <p>Click on the logos to learn more about the frameworks</p>
-
-  <form class="row" (submit)="greet($event, greetInput.value)">
-    <input #greetInput id="greet-input" placeholder="Enter a name..." />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{{ greetingMessage() }}</p>
-
-  <router-outlet />
-</main>
+<div class="app-shell new-shell">
+	<aside class="sidebar">
+		<div class="brand">
+			<div
+				class="brand-mark"
+				aria-hidden="true">
+				▦
+			</div>
+			<div><strong>Compose Admin</strong><span>Environnement local</span></div>
+		</div>
+		<div class="sidebar-label">
+			MES PROJETS <span class="project-count">{{ projects().length }}</span>
+		</div>
+		<div class="sidebar-projects">
+			@for (project of projects(); track project.directory) {
+				<div class="sidebar-project-entry">
+					<button
+						class="sidebar-project"
+						[class.current]="selectedProject()?.directory === project.directory"
+						type="button"
+						(click)="selectProject(project.directory)">
+						<span class="mini-status" [class.is-running]="isRunning(project)"></span>
+						<span>{{ project.name }}</span>
+						@if (!project.accessible) { <span title="Dossier introuvable">⚠</span> }
+					</button>
+					<button class="remove-project" type="button" title="Retirer de Compose Admin"
+						[attr.aria-label]="'Retirer ' + project.name + ' de Compose Admin'"
+						(click)="removeProject(project)">×</button>
+				</div>
+			} @empty {
+				<p class="sidebar-empty">Aucun projet enregistré</p>
+			}
+		</div>
+		<button
+			class="add-project"
+			type="button"
+			(click)="chooseDirectory()"
+			[disabled]="choosingDirectory()">
+			＋ Ajouter un projet
+		</button>
+		<div class="sidebar-footer">
+			<span
+				class="connection-indicator"
+				[class.is-connected]="dockerEngine().connected"
+				[class.is-disconnected]="!dockerEngine().connected && !dockerEngine().checking"></span>
+			<div class="connection-copy">
+				<strong>Docker Engine</strong
+				><span>{{
+					dockerEngine().connected
+						? "Connecté · v" + dockerEngine().version
+						: dockerEngine().checking
+							? "Vérification…"
+							: "Indisponible"
+				}}</span>
+			</div>
+		</div>
+		<div class="app-build-info">
+			<strong>Compose Admin</strong>
+			<span>v{{ buildInfo().version }} · {{ buildInfo().commit }}</span>
+			@if (availableUpdate(); as update) {
+				<div class="update-available">Version {{ update.version }} disponible</div>
+				<button type="button" (click)="installUpdate()" [disabled]="installingUpdate()">
+					{{ installingUpdate() ? "Installation…" : "Installer la mise à jour" }}
+				</button>
+			} @else if (buildInfo().updaterEnabled) {
+				<button type="button" (click)="checkForUpdates()" [disabled]="checkingForUpdates()">
+					{{ checkingForUpdates() ? "Vérification…" : "Vérifier les mises à jour" }}
+				</button>
+			}
+		</div>
+	</aside>
+	<main class="main-shell new-main">
+		<header class="topbar">
+			<div class="breadcrumb">
+				Workspace <span>/</span> <strong>{{ selectedProject()?.name ?? "Sélection du projet" }}</strong>
+			</div>
+			<div class="topbar-actions">
+				<span class="local-badge"><span></span> LOCAL</span
+				><button
+					class="refresh-button"
+					type="button"
+					(click)="refreshProjects()"
+					[disabled]="scanning()">
+					↻ Actualiser
+				</button>
+			</div>
+		</header>
+		<div class="content new-content">
+			@if (notice(); as currentNotice) {
+				<div
+					class="notice"
+					[class.notice-error]="currentNotice.kind === 'error'"
+					[class.notice-success]="currentNotice.kind === 'success'"
+					role="status">
+					<span class="notice-dot"></span>
+					<p>{{ currentNotice.text }}</p>
+					<button
+						type="button"
+						(click)="clearNotice()"
+						aria-label="Fermer le message">
+						×
+					</button>
+				</div>
+			}
+			@if (selectedProject(); as project) {
+				@if (project.accessible) {
+				<app-project-workspace
+					[project]="project"
+					[selectedServices]="selectedServices()"
+					[watchServices]="project.watchServices"
+					[busy]="busyDirectory() === project.directory"
+					(projectAction)="runAction($event)"
+					(serviceToggle)="toggleService($event)"
+					(composeFilesChange)="saveComposeFiles(project, $event)"
+					(selectAll)="selectAllServices()"
+					(clearSelection)="clearSelectedServices()"
+					(serviceAction)="runServiceAction($event.container, $event.action)"
+					(containerLoadError)="setNotice('error', $event)"
+					(openApplication)="openApplication($event)"
+				/>
+				} @else {
+					<div class="welcome-state">
+						<div class="welcome-icon">⚠</div>
+						<h1>Projet inaccessible</h1>
+						<p>Le dossier « {{ project.directory }} » est introuvable ou ne contient plus de configuration Compose reconnue.</p>
+						<button class="welcome-button" type="button" (click)="removeProject(project)">Retirer de Compose Admin</button>
+					</div>
+				}
+			} @else if (scanning()) {
+				<div class="welcome-state">
+					<div class="welcome-icon">◌</div>
+					<h1>Analyse de votre projet…</h1>
+					<p>Recherche des fichiers de configuration.</p>
+				</div>
+			} @else {
+				<div class="welcome-state">
+					<div class="welcome-icon">▦</div>
+					<span class="eyebrow">VOTRE ENVIRONNEMENT LOCAL</span>
+					<h1>Un espace dédié à votre application.</h1>
+					<p>
+						Sélectionnez le dossier de votre projet pour afficher ses services, les démarrer et ouvrir votre
+						application.
+					</p>
+					<button
+						class="welcome-button"
+						type="button"
+						(click)="chooseDirectory()"
+						[disabled]="choosingDirectory()">
+						{{ choosingDirectory() ? "Ouverture…" : "Choisir le dossier du projet" }}
+					</button>
+				</div>
+			}
+			<footer class="page-footer">
+				<span>Compose Admin · v{{ buildInfo().version }} · {{ buildInfo().commit }}</span><span>Docker Compose CLI v2</span>
+			</footer>
+		</div>
+	</main>
+</div>

@@ -1,0 +1,53 @@
+<div class="project-header">
+	<div class="project-title">
+		<div class="project-icon">▦</div>
+		<div>
+			<span class="eyebrow">VOTRE ENVIRONNEMENT LOCAL</span>
+			<h1>{{ project().name }}</h1>
+			<p>{{ project().relativeDirectory }}</p>
+		</div>
+	</div>
+	<span class="status" [class.running]="project().status === 'running'"><i></i>{{ project().status === 'running' ? 'En cours' : project().status === 'stopped' ? 'Arrêté' : 'État inconnu' }}</span>
+</div>
+<div class="action-bar">
+	@if (project().status === 'running') {
+	<button class="primary stop" type="button" [disabled]="busy()" (click)="projectAction.emit('stop')">■ Arrêter l’environnement</button>
+	} @else {
+	<button class="primary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('start')">▶ Démarrer l’environnement</button>
+	}
+	<button class="secondary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('restart')">↻ Redémarrer</button>
+	<button class="secondary" type="button" [disabled]="busy() || selectedServices().length === 0" (click)="projectAction.emit('build')">⚒ Construire les images</button>
+	<button class="secondary" type="button" [disabled]="busy()" (click)="projectAction.emit('pull')">↓ Récupérer les images</button>
+	<span class="action-spacer"></span>
+	<button class="open-app" type="button" [disabled]="!applicationUrl()" (click)="openApp()">Ouvrir l’application ↗</button>
+</div>
+<app-service-selection [services]="project().services" [selected]="selectedServices()" [watchServices]="watchServices()" (toggled)="serviceToggle.emit($event)" (selectAll)="selectAll.emit()" (clear)="clearSelection.emit()" />
+<div class="lower-grid">
+	<app-container-list [containers]="containers()" [loading]="containersLoading()" [busy]="busy()" (action)="serviceAction.emit($event)" />
+	<aside class="project-info">
+		<h2>Configuration Compose</h2>
+		<p class="compose-help">Sélectionnez les fichiers à fusionner. Leur ordre définit les priorités de configuration, sans modifier les fichiers eux-mêmes.</p>
+		<div class="compose-file-list">
+			@for (file of orderedComposeFiles(); track file) {
+				<div class="compose-file-choice" [class.active]="project().composeFiles.includes(file)">
+					<label>
+						<input type="checkbox" [checked]="project().composeFiles.includes(file)"
+							[disabled]="project().composeFiles.length === 1 && project().composeFiles.includes(file)"
+							(change)="toggleComposeFile(file, $any($event.target).checked)" />
+						<span [title]="file">{{ file }}</span>
+					</label>
+					@if (project().composeFiles.includes(file)) {
+						<div class="file-order-actions">
+							<button type="button" title="Monter" aria-label="Monter le fichier" [disabled]="project().composeFiles.indexOf(file) === 0" (click)="moveComposeFile(file, -1)">↑</button>
+							<button type="button" title="Descendre" aria-label="Descendre le fichier" [disabled]="project().composeFiles.indexOf(file) === project().composeFiles.length - 1" (click)="moveComposeFile(file, 1)">↓</button>
+						</div>
+					}
+				</div>
+			}
+		</div>
+		<div class="info-row"><span>Fichiers actifs</span><strong>{{ project().composeFiles.length }}</strong></div>
+	</aside>
+</div>
+<app-compose-progress [projectDirectory]="project().directory" />
+<app-compose-progress [projectDirectory]="project().directory" source="action" title="Activité des opérations" [isRunning]="busy()" />
+<app-logs-panel [rootDirectory]="project().rootDirectory" [projectDirectory]="project().directory" />

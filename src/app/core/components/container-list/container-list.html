@@ -1,0 +1,65 @@
+<section class="panel">
+	<div class="panel-heading">
+		<div>
+			<h2>Services en cours</h2>
+			<p>État réel des conteneurs de ce projet.</p>
+		</div>
+		<span class="count">{{ containers().length }}</span>
+	</div>
+	@if (loading()) {
+	<p class="muted">Chargement des services…</p>
+	} @else if (containers().length === 0) {
+	<p class="muted">
+		Aucun conteneur pour le moment. Démarrez les services sélectionnés pour les voir apparaître ici.
+	</p>
+	} @else {
+	<div class="container-list">
+		@for (container of containers(); track container.id) {
+		<article class="container-row">
+			<div class="container-main">
+				<span
+					class="state-dot"
+					[class.running]="container.state === 'running'"></span>
+				<div><strong>{{ container.service || container.name }}</strong><small>{{ container.name }}</small></div>
+			</div>
+			<div class="container-meta">
+				<span
+					class="state-label"
+					[class.running-label]="container.state === 'running'"
+					>{{ container.status }}</span
+				><span>CPU <b>{{ container.cpu ?? '—' }}</b></span
+				><span>RAM <b>{{ container.memory ?? '—' }}</b></span>
+			</div>
+			<div class="container-actions">
+				@if (container.state !== 'running') {
+				<button
+					type="button"
+					[disabled]="busy()"
+					(click)="action.emit({container, action:'start'})">
+					Démarrer
+				</button>
+				} @else {
+				<button
+					type="button"
+					[disabled]="busy()"
+					(click)="action.emit({container, action:'stop'})">
+					Arrêter
+				</button>
+				}
+				<button
+					type="button"
+					[disabled]="busy()"
+					(click)="action.emit({container, action:'restart'})">
+					Redémarrer
+				</button>
+			</div>
+			@if (container.ports.length) {
+			<div class="ports">
+				<span>Ports</span>@for (port of container.ports; track port) { <code>{{ port }}</code> }
+			</div>
+			}
+		</article>
+		}
+	</div>
+	}
+</section>

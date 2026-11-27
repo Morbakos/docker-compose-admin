@@ -1,0 +1,8 @@
+<app-action-console
+	title="Logs de l’environnement"
+	description="Flux en direct · actualisation instantanée"
+	[entries]="lines()"
+	[error]="error()"
+	[isRunning]="true"
+	(clear)="clearLogs()"
+/>
