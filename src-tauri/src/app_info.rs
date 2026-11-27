@@ -52,7 +52,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, crat
     let update = configured_updater(&app)?
         .check()
         .await
-        .map_err(crate::app_error::AppError::from)?;
+        .map_err(|error| crate::app_error::AppError::from(error.to_string()))?;
 
     Ok(update.map(|update| UpdateInfo {
         version: update.version,
