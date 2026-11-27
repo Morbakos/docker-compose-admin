@@ -319,7 +319,7 @@ fn run_docker(args: &[String]) -> Result<Output, crate::app_error::AppError> {
         } else {
             details
         }));
-    }/
+    }
 
     Ok(output)
 }
@@ -353,7 +353,7 @@ fn run_docker_streaming(
         forward_process_output(reader, app, project_directory, "action", Some(operation.to_string()), "stderr")
     });
 
-    let status = child.wait().map_err(|error| format!("Impossible d'attendre la fin de Docker : {error}"))?;
+    let status = child.wait().map_err(|error| crate::app_error::AppError::from(format!("Impossible d'attendre la fin de Docker : {error}")))?;
     let mut output_lines = Vec::new();
     for handle in [stdout, stderr].into_iter().flatten() {
         if let Ok(mut lines) = handle.join() {
@@ -368,7 +368,7 @@ fn run_docker_streaming(
         } else {
             details
         }));
-    }/
+    }
 
     // Successful command output is already available in the live console.
     // Keep the command result short so it can be used as a user-facing notice.
@@ -590,7 +590,7 @@ pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<Stri
             .transpose()
     })
     .await
-    .map_err(|error| format!("Le sélecteur de dossier a échoué : {error}"))?
+    .map_err(|error| crate::app_error::AppError::from(format!("Le sélecteur de dossier a échoué : {error}")))?;
 }
 
 #[tauri::command]

@@ -36,14 +36,14 @@ pub fn get_build_info() -> BuildInfo {
 fn configured_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, crate::app_error::AppError> {
     let public_key = option_env!("TAURI_UPDATER_PUBLIC_KEY")
         .filter(|key| !key.trim().is_empty())
-        .ok_or_else(|| "La clé publique de mise à jour n'est pas configurée dans cette version.".to_string())?;
+        .ok_or_else(|| crate::app_error::AppError::from("La clé publique de mise à jour n'est pas configurée dans cette version."))?;
 
     app.updater_builder()
         .pubkey(public_key)
-        .endpoints(vec![Url::parse(UPDATE_ENDPOINT).map_err(|error| error.to_string())?])
+        .endpoints(vec![Url::parse(UPDATE_ENDPOINT).map_err(crate::app_error::AppError::from)?])
         .map_err(|error| error.to_string())?
         .build()
-        .map_err(|error| error.to_string())
+        .map_err(crate::app_error::AppError::from)
 }
 
 #[tauri::command]
@@ -52,7 +52,7 @@ pub async fn check_for_update(app: AppHandle) -> Result<Option<UpdateInfo>, crat
     let update = configured_updater(&app)?
         .check()
         .await
-        .map_err(|error| error.to_string())?;
+        .map_err(crate::app_error::AppError::from)?;
 
     Ok(update.map(|update| UpdateInfo {
         version: update.version,
