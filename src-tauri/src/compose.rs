@@ -590,7 +590,8 @@ pub async fn pick_compose_directory(app: tauri::AppHandle) -> Result<Option<Stri
             .transpose()
     })
     .await
-    .map_err(|error| crate::app_error::AppError::from(format!("Le sélecteur de dossier a échoué : {error}")))?;
+    .map_err(|error| crate::app_error::AppError::from(format!("Le sélecteur de dossier a échoué : {error}")))?
+    .map_err(crate::app_error::AppError::from)
 }
 
 #[tauri::command]

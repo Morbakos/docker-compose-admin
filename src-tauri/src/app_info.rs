@@ -41,7 +41,7 @@ fn configured_updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, 
     app.updater_builder()
         .pubkey(public_key)
         .endpoints(vec![Url::parse(UPDATE_ENDPOINT).map_err(crate::app_error::AppError::from)?])
-        .map_err(|error| error.to_string())?
+        .map_err(crate::app_error::AppError::from)?
         .build()
         .map_err(crate::app_error::AppError::from)
 }
